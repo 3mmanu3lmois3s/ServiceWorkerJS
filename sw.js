@@ -18,7 +18,8 @@ self.addEventListener('fetch', function(event) {
     console.log('Service Worker: Fetch event for', requestUrl.href);
 
     if (requestUrl.pathname.startsWith(basePath)) {
-        const relativePath = requestUrl.pathname.substring(basePath.length);
+        const relativePath = requestUrl.pathname.substring(basePath.length).trim(); // .trim() HERE!
+        console.log('Service Worker: relativePath is:', relativePath); // Keep this log
 
         if (relativePath === '/api/data') {
             console.log('Service Worker: Handling /api/data');

@@ -5,12 +5,12 @@ const basePath = '/ServiceWorkerJS/';
 
 self.addEventListener('install', function(event) {
     console.log('Service Worker installing.');
-    event.waitUntil(self.skipWaiting()); // Immediate activation
+    event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
-    event.waitUntil(clients.claim()); // Take control immediately
+    event.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', function(event) {
@@ -18,26 +18,26 @@ self.addEventListener('fetch', function(event) {
     console.log('Service Worker: Fetch event for', requestUrl.href);
 
     if (requestUrl.pathname.startsWith(basePath)) {
-        const relativePath = requestUrl.pathname.substring(basePath.length).trim(); // .trim() HERE!
-        console.log('Service Worker: relativePath is:', relativePath); // Keep this log
+        const relativePath = requestUrl.pathname.substring(basePath.length);
+        console.log('Service Worker: relativePath is:', relativePath);
 
-        if (relativePath === '/api/data') {
+        if (relativePath === 'api/data') {
             console.log('Service Worker: Handling /api/data');
             event.respondWith(
                 new Response(JSON.stringify({ message: 'Hello from Service Worker! (data)' }), {
                     headers: { 'Content-Type': 'application/json' }
                 })
             );
-        } else if (relativePath === '/api/users') {
+        } else if (relativePath === 'api/users') {
             console.log('Service Worker: Handling /api/users');
             event.respondWith(
                 new Response(JSON.stringify([{ id: 1, name: 'John Doe' }, { id: 2, name: 'Jane Doe' }]), {
                     headers: { 'Content-Type': 'application/json' }
                 })
             );
-        } else if (relativePath.startsWith('/api/user/')) {
+        } else if (relativePath.startsWith('api/user/')) {
             console.log('Service Worker: Handling /api/user/');
-            const userId = relativePath.substring('/api/user/'.length);
+            const userId = relativePath.substring('api/user/'.length);
             event.respondWith(
                 new Response(JSON.stringify({ id: userId, name: 'User ' + userId }), {
                     headers: { 'Content-Type': 'application/json' }

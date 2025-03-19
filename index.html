@@ -1,15 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Worker Demo</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Worker Demo with Blob</title>
 </head>
 <body>
-    <h1>Service Worker API Demo</h1>
-    <button id="fetchData">Fetch Data</button>
-    <pre id="response"></pre>
+  <h1>Service Worker API Demo (Blob)</h1>
+  <button id="fetchData">Fetch Data</button>
+  <pre id="response"></pre>
 
-    <script src="main.js"></script>
+  <script>
+    // Código del Service Worker como una cadena
+    const swCode = `
+      self.addEventListener('install', function(event) {
+        console.log('Service Worker installing.');
+        // Puedes agregar aquí pasos de instalación, si es necesario.
+        event.waitUntil(self.skipWaiting());
+      });
+      
+      self.addEventListener('activate', function(event) {
+        console.log('Service Worker activating.');
+        event.waitUntil(self.clients.claim());
+      });
+      
+      self.addEventListener('fetch', function(event) {
+        if (event.request.url.endsWith('/api/data')) {
+          event.respondWith(
+            new Response(JSON.stringify({ message: 'Hello from Service Worker!' }), {
+              headers: { 'Content-Type': 'application/json' }
+            })
+          );
+        } else {
+          event.respondWith(fetch(event.request));
+        }
+      });
+    `;
+
+    // Crear un Blob con el código del Service Worker
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    // Crear una URL para el Blob
+    const swBlobUrl = URL.createObjectURL(blob);
+
+    // Registrar el Service Worker usando la URL generada a partir del Blob
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register(swBlobUrl)
+        .then(function(registration) {
+          console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(function(error) {
+          console.error('Service Worker registration failed:', error);
+        });
+    }
+
+    // Al hacer clic en el botón, se realiza la petición a "/api/data"
+    document.getElementById('fetchData').addEventListener('click', function() {
+      // Nota: Si usas una ruta absoluta (/api/data), la URL final será la raíz del dominio.
+      // Si deseas que se resuelva en relación a la ubicación actual, elimina la barra inicial.
+      fetch('/api/data')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(error => {
+          console.error('Error fetching data:', error);
+        });
+    });
+  </script>
 </body>
 </html>

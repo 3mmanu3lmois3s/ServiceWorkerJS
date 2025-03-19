@@ -1,4 +1,5 @@
 // sw.js
+const basePath = '/ServiceWorkerJS'; // Define basePath para GitHub Pages
 
 self.addEventListener('install', function(event) {
     console.log('Service Worker installing.');
@@ -24,20 +25,20 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
 
-    if (requestUrl.pathname === '/api/data') {
+    if (requestUrl.pathname === basePath + '/api/data') {  // Usa basePath
         event.respondWith(
             new Response(JSON.stringify({ message: 'Hello from Service Worker! (data)' }), {
                 headers: { 'Content-Type': 'application/json' }
             })
         );
-    } else if (requestUrl.pathname === '/api/users') {
+    } else if (requestUrl.pathname === basePath + '/api/users') { // Usa basePath
         event.respondWith(
             new Response(JSON.stringify([{ id: 1, name: 'John Doe' }, { id: 2, name: 'Jane Doe' }]), {
                 headers: { 'Content-Type': 'application/json' }
             })
         );
-    } else if (requestUrl.pathname.startsWith('/api/user/')) {
-        const userId = requestUrl.pathname.substring('/api/user/'.length);
+    } else if (requestUrl.pathname.startsWith(basePath + '/api/user/')) { // Usa basePath
+        const userId = requestUrl.pathname.substring((basePath + '/api/user/').length); // Ajusta la subcadena
         event.respondWith(
             new Response(JSON.stringify({ id: userId, name: 'User ' + userId }), {
                 headers: { 'Content-Type': 'application/json' }

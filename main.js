@@ -1,6 +1,6 @@
 // Register the service worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('https://3mmanu3lmois3s.github.io/ServiceWorkerJS/sw.js').then(function(registration) {
+    navigator.serviceWorker.register('./sw.js').then(function(registration) {
         console.log('Service Worker registered with scope:', registration.scope);
     }).catch(function(error) {
         console.log('Service Worker registration failed:', error);

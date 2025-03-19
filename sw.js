@@ -39,82 +39,72 @@ self.addEventListener('fetch', function(event) {
         console.log('Service Worker: relativePath is:', relativePath);
         const method = event.request.method;
 
+        // *** Re-introduce params extraction ***
+        const params = relativePath.split('/').filter(part => part !== '');
+
+
         try {
-            switch (relativePath) {
+            switch (params[0]) { // Switch on the FIRST part of the path
                 case 'customers':
-                    if (method === 'POST') {
+                    if (method === 'POST' && params.length === 1) {
                         console.log("Entra en customers post");
                         event.respondWith(handleCreateCustomer(event.request));
+                    } else if (method === 'POST' && params[2] === 'quotes' && params.length === 3) {
+                        console.log("Entra en quotes post");
+                        const customerId = params[1];
+                        event.respondWith(handleStartQuote(customerId, event.request));
+                    } else if (method === 'PUT' && params[2] === 'quotes' && params.length === 4) {
+                        console.log("Entra en quotes put");
+                        const customerId = params[1];
+                        const quoteId = params[3];
+                        event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
+                    } else if (method === 'POST' && params[2] === 'quotes' && params[4] === 'calculate' && params.length === 5) {
+                         const customerId = params[1];
+                         const quoteId = params[3];
+                        event.respondWith(handleCalculatePremium(customerId, quoteId));
+                    } else if (method === 'POST' && params[2] === 'quotes' && params[4] === 'accept' && params.length === 5) {
+                        const customerId = params[1];
+                        const quoteId = params[3];
+                        event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
+                    } else if (method === 'GET' && params[2] === 'policies' && params.length === 4) {
+                        const customerId = params[1];
+                        const policyId = params[3];
+                        event.respondWith(handleGetPolicy(customerId, policyId));
+                    } else if (method === 'POST' && params[2] === 'claims' && params.length === 3) {
+                        console.log("Entra en file claim");
+                        const customerId = params[1];
+                        event.respondWith(handleFileClaim(customerId, event.request));
+                    } else if (method === 'GET' && params[2] === 'claims' && params.length === 4) {
+                        const customerId = params[1];
+                        const claimId = params[3];
+                        event.respondWith(handleGetClaim(customerId, claimId));
+                    } else if (method === 'GET' && params[2] === 'policies' && params[4] === 'renewal' && params.length === 5) {
+                        const customerId = params[1];
+                        const policyId = params[3];
+                        event.respondWith(handleGetRenewalInfo(customerId, policyId));
+                    } else if (method === 'POST' && params[2] === 'policies' && params[4] === 'renew' && params.length === 5) {
+                        const customerId = params[1];
+                        const policyId = params[3];
+                        event.respondWith(handleRenewPolicy(customerId, policyId, event.request));
+                    } else {
+                        console.log('Service Worker: Passing request to network (Unhandled customer route):', event.request.url);
+                        event.respondWith(fetch(event.request));
                     }
-                    break;
+                    break; //VERY IMPORTANT
+
                 case 'products':
                     if (method === 'GET') {
                         event.respondWith(handleGetProducts());
                     }
                     break;
-                case `customers/${params[0]}/quotes`:
-                    if (method === 'POST') {
-                         console.log("Entra en quotes post");
-                        const customerId = relativePath.split('/')[1];
-                        event.respondWith(handleStartQuote(customerId, event.request));
-                    }
-                    break;
-                case `customers/${params[0]}/quotes/${params[2]}`:
-                    if(method === 'PUT'){
-                        console.log("Entra en quotes put");
-                        const [_, customerId, __, quoteId] = relativePath.split('/');
-                        event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
-                    }
-                    break;
-                case `customers/${params[0]}/quotes/${params[2]}/calculate`:
-                    if(method === 'POST'){
-                        const [_, customerId, __, quoteId] = relativePath.split('/');
-                        event.respondWith(handleCalculatePremium(customerId, quoteId));
-                    }
-                    break;
-                case `customers/${params[0]}/quotes/${params[2]}/accept`:
-                    if(method === 'POST'){
-                        const [_, customerId, __, quoteId] = relativePath.split('/');
-                        event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
-                    }
-                    break;
-                case `customers/${params[0]}/policies/${params[2]}`:
-                    if(method === 'GET'){
-                        const [_, customerId, __, policyId] = relativePath.split('/');
-                        event.respondWith(handleGetPolicy(customerId, policyId));
-                    }
-                    break;
-                case `customers/${params[0]}/claims`:
-                    if(method === 'POST'){
-                        console.log("Entra en file claim");
-                        const customerId = relativePath.split('/')[1];
-                        event.respondWith(handleFileClaim(customerId, event.request));
-                    }
-                    break;
-                case `customers/${params[0]}/claims/${params[2]}`:
-                    if(method === 'GET'){
-                        const [_, customerId, __, claimId] = relativePath.split('/');
-                        event.respondWith(handleGetClaim(customerId, claimId));
-                    }
-                    break;
-                case `customers/${params[0]}/policies/${params[2]}/renewal`:
-                    if(method === 'GET'){
-                        const [_, customerId, __, policyId] = relativePath.split('/');
-                        event.respondWith(handleGetRenewalInfo(customerId, policyId));
-                    }
-                    break;
-                case `customers/${params[0]}/policies/${params[2]}/renew`:
-                    if(method === 'POST'){
-                        const [_, customerId, __, policyId] = relativePath.split('/');
-                        event.respondWith(handleRenewPolicy(customerId, policyId, event.request));
-                    }
-                    break;
+
                 default:
                     console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
                     event.respondWith(fetch(event.request));
             }
 
         } catch (error) {
+            console.error("SW Error:", error); // More detailed error logging
             event.respondWith(new Response(JSON.stringify({ error: error.message }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }

@@ -37,76 +37,89 @@ self.addEventListener('fetch', function(event) {
     if (requestUrl.pathname.startsWith(basePath)) {
         const relativePath = requestUrl.pathname.substring(basePath.length);
         console.log('Service Worker: relativePath is:', relativePath);
-
         const method = event.request.method;
-        console.log('Service Worker: method is:', method);
 
         try {
-          // Organize routes by entity and method.  This is MUCH cleaner.
-          if (relativePath.startsWith('customers')) {
-            if (method === 'POST' && relativePath === 'customers') {
-              // Create Customer
-              console.log("Entra en customers post");
-              event.respondWith(handleCreateCustomer(event.request));
-            } else if (method === 'POST' && relativePath.match(/^customers\/\w+\/quotes$/)) {
-                // Start Quote
-                console.log("Entra en quotes post");
-                const customerId = relativePath.split('/')[1];
-                event.respondWith(handleStartQuote(customerId, event.request));
-            } else if (method === 'PUT' && relativePath.match(/^customers\/\w+\/quotes\/\w+$/)) {
-                // Update Quote
-                const [_, customerId, __, quoteId] = relativePath.split('/');
-                console.log("Entra en quotes put");
-                event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
-            } else if (method === 'POST' && relativePath.match(/^customers\/\w+\/quotes\/\w+\/calculate$/)) {
-                // Calculate Premium
-                const [_, customerId, __, quoteId] = relativePath.split('/');
-                event.respondWith(handleCalculatePremium(customerId, quoteId));
-            } else if (method === 'POST' && relativePath.match(/^customers\/\w+\/quotes\/\w+\/accept$/)) {
-                // Accept Quote
-                const [_, customerId, __, quoteId] = relativePath.split('/');
-                event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
-            } else if (method === 'GET' && relativePath.match(/^customers\/\w+\/policies\/\w+$/)) {
-              // Get Policy
-              const [_, customerId, __, policyId] = relativePath.split('/');
-              event.respondWith(handleGetPolicy(customerId, policyId));
-            } else if (method === 'POST' && relativePath.match(/^customers\/\w+\/claims$/)) {
-                // File Claim
-              console.log("Entra en file claim");
-              const customerId = relativePath.split('/')[1];
-              event.respondWith(handleFileClaim(customerId, event.request));
-            } else if (method === 'GET' && relativePath.match(/^customers\/\w+\/claims\/\w+$/)) {
-                // Get Claim
-              const [_, customerId, __, claimId] = relativePath.split('/');
-              event.respondWith(handleGetClaim(customerId, claimId));
-            } else if (method === 'GET' && relativePath.match(/^customers\/\w+\/policies\/\w+\/renewal$/)) {
-              // Get Renewal
-              const [_, customerId, __, policyId] = relativePath.split('/');
-              event.respondWith(handleGetRenewalInfo(customerId, policyId));
-            } else if (method === 'POST' && relativePath.match(/^customers\/\w+\/policies\/\w+\/renew$/)) {
-                // Renew Policy
-              const [_, customerId, __, policyId] = relativePath.split('/');
-              event.respondWith(handleRenewPolicy(customerId, policyId, event.request));
-            } else {
-              console.log('Service Worker: Passing request to network (Unhandled customer route):', event.request.url);
-              event.respondWith(fetch(event.request));
+            switch (relativePath) {
+                case 'customers':
+                    if (method === 'POST') {
+                        console.log("Entra en customers post");
+                        event.respondWith(handleCreateCustomer(event.request));
+                    }
+                    break;
+                case 'products':
+                    if (method === 'GET') {
+                        event.respondWith(handleGetProducts());
+                    }
+                    break;
+                case `customers/${params[0]}/quotes`:
+                    if (method === 'POST') {
+                         console.log("Entra en quotes post");
+                        const customerId = relativePath.split('/')[1];
+                        event.respondWith(handleStartQuote(customerId, event.request));
+                    }
+                    break;
+                case `customers/${params[0]}/quotes/${params[2]}`:
+                    if(method === 'PUT'){
+                        console.log("Entra en quotes put");
+                        const [_, customerId, __, quoteId] = relativePath.split('/');
+                        event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
+                    }
+                    break;
+                case `customers/${params[0]}/quotes/${params[2]}/calculate`:
+                    if(method === 'POST'){
+                        const [_, customerId, __, quoteId] = relativePath.split('/');
+                        event.respondWith(handleCalculatePremium(customerId, quoteId));
+                    }
+                    break;
+                case `customers/${params[0]}/quotes/${params[2]}/accept`:
+                    if(method === 'POST'){
+                        const [_, customerId, __, quoteId] = relativePath.split('/');
+                        event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
+                    }
+                    break;
+                case `customers/${params[0]}/policies/${params[2]}`:
+                    if(method === 'GET'){
+                        const [_, customerId, __, policyId] = relativePath.split('/');
+                        event.respondWith(handleGetPolicy(customerId, policyId));
+                    }
+                    break;
+                case `customers/${params[0]}/claims`:
+                    if(method === 'POST'){
+                        console.log("Entra en file claim");
+                        const customerId = relativePath.split('/')[1];
+                        event.respondWith(handleFileClaim(customerId, event.request));
+                    }
+                    break;
+                case `customers/${params[0]}/claims/${params[2]}`:
+                    if(method === 'GET'){
+                        const [_, customerId, __, claimId] = relativePath.split('/');
+                        event.respondWith(handleGetClaim(customerId, claimId));
+                    }
+                    break;
+                case `customers/${params[0]}/policies/${params[2]}/renewal`:
+                    if(method === 'GET'){
+                        const [_, customerId, __, policyId] = relativePath.split('/');
+                        event.respondWith(handleGetRenewalInfo(customerId, policyId));
+                    }
+                    break;
+                case `customers/${params[0]}/policies/${params[2]}/renew`:
+                    if(method === 'POST'){
+                        const [_, customerId, __, policyId] = relativePath.split('/');
+                        event.respondWith(handleRenewPolicy(customerId, policyId, event.request));
+                    }
+                    break;
+                default:
+                    console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
+                    event.respondWith(fetch(event.request));
             }
 
-          } else if (relativePath === 'products' && method === 'GET') {
-            // Get Products
-            event.respondWith(handleGetProducts());
-          }
-            else {
-                console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
-                event.respondWith(fetch(event.request));
-            }
         } catch (error) {
             event.respondWith(new Response(JSON.stringify({ error: error.message }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
             }));
         }
-
     } else {
         console.log('Service Worker: Passing request to network (not in base path):', event.request.url);
         event.respondWith(fetch(event.request));

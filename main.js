@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetchData(basePath + apiUrl, method, bodyData);
+                const response = await fetchData(basePath + apiUrl, method, bodyData); //Add basepath here
                 document.getElementById('response').textContent = JSON.stringify(response, null, 2);
 
                  //Update variables if I get them from response

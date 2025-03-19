@@ -40,59 +40,64 @@ self.addEventListener('fetch', function(event) {
 
         let [route, ...params] = relativePath.split('/').filter(part => part !== '');
         const method = event.request.method;
+        console.log('Service Worker: method is:', method);
+
 
         try{
             if (route === 'customers' && method === 'POST') {
                 // Create Customer
+                console.log("Entra en customers post");
                 event.respondWith(handleCreateCustomer(event.request));
 
             } else if (route === 'products' && method === 'GET') {
                 // Get Products
                  event.respondWith(handleGetProducts());
             }
-            else if (route === 'customers' && params[1] === 'quotes' && method === 'POST') {
+            else if (route === 'customers' && params[0] === 'quotes' && method === 'POST') {
                 // Start Quote
+                console.log("Entra en quotes post");
                 const customerId = params[0];
                 event.respondWith(handleStartQuote(customerId, event.request));
             }
-            else if (route === 'customers' && params[1] === 'quotes' && method === 'PUT') {
+            else if (route === 'customers' && params[0] === 'quotes' && method === 'PUT') {
                 // Update Quote
                 const [customerId, _, quoteId] = params;
+                 console.log("Entra en quotes put");
                 event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
             }
-            else if (route === 'customers' && params[1] === 'quotes' && params[3] === 'calculate' && method === 'POST') {
+            else if (route === 'customers' && params[0] === 'quotes' && params[2] === 'calculate' && method === 'POST') {
                 // Calculate Premium
                 const [customerId, _, quoteId] = params;
                 event.respondWith(handleCalculatePremium(customerId, quoteId));
             }
-            else if (route === 'customers' && params[1] === 'quotes' && params[3] === 'accept' && method === 'POST') {
+            else if (route === 'customers' && params[0] === 'quotes' && params[2] === 'accept' && method === 'POST') {
                 // Accept Quote
                 const [customerId, _, quoteId] = params;
                 event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
             }
 
-            else if (route === 'customers' && params[1] === 'policies' && method === 'GET') {
+            else if (route === 'customers' && params[0] === 'policies' && method === 'GET') {
                 // Get Policy
                 const [customerId, _, policyId] = params;
                 event.respondWith(handleGetPolicy(customerId, policyId));
             }
 
-            else if(route === 'customers' && params[1] === 'claims' && method === 'POST'){
+            else if(route === 'customers' && params[0] === 'claims' && method === 'POST'){
                 //File a claim
                 const customerId = params[0];
                 event.respondWith(handleFileClaim(customerId, event.request));
             }
-            else if(route === 'customers' && params[1] === 'claims' && method === 'GET'){
+            else if(route === 'customers' && params[0] === 'claims' && method === 'GET'){
                 const [customerId, _, claimId] = params;
                 event.respondWith(handleGetClaim(customerId, claimId));
             }
 
-            else if (route === 'customers' && params[1] === 'policies' && params[3] === 'renewal' && method === 'GET') {
+            else if (route === 'customers' && params[0] === 'policies' && params[2] === 'renewal' && method === 'GET') {
                 // Get Renewal Info
                 const [customerId, _, policyId] = params;
                 event.respondWith(handleGetRenewalInfo(customerId, policyId));
             }
-            else if (route === 'customers' && params[1] === 'policies' && params[3] === 'renew' && method === 'POST') {
+            else if (route === 'customers' && params[0] === 'policies' && params[2] === 'renew' && method === 'POST') {
                 // Renew Policy
                 const [customerId, _, policyId] = params;
                 event.respondWith(handleRenewPolicy(customerId, policyId, event.request));

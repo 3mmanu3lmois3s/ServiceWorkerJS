@@ -1,5 +1,4 @@
-// main.js
-
+// main.js (MODIFICADO)
 // --- Service Worker Registration ---
 let newWorker; // Variable global para el nuevo service worker
 
@@ -37,7 +36,9 @@ document.getElementById('fetchData').addEventListener('click', () => fetchData('
 document.getElementById('fetchUsers').addEventListener('click', () => fetchData('/api/users'));
 document.getElementById('fetchUser123').addEventListener('click', () => fetchData('/api/user/123'));
 document.getElementById('updateSW').addEventListener('click', () => {
+  if (newWorker) {
     newWorker.postMessage({ action: 'skipWaiting' });
+  }
 });
 
 // --- Función fetchData (reutilizable) ---
@@ -74,10 +75,10 @@ window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus(); // Llamar al inicio
 
-// --- Recargar la página cuando el Service Worker cambie ---
-let refreshing;
-navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    window.location.reload();
-    refreshing = true;
-});
+// --- Recargar la página cuando el Service Worker cambie --- (COMENTADO)
+// let refreshing;
+// navigator.serviceWorker.addEventListener('controllerchange', () => {
+//     if (refreshing) return;
+//     window.location.reload();
+//     refreshing = true;
+// });

@@ -1,5 +1,5 @@
 // sw.js
-const basePath = '/ServiceWorkerJS'; // Define basePath para GitHub Pages
+const basePath = '/ServiceWorkerJS/'; // Define basePath para GitHub Pages
 
 self.addEventListener('install', function(event) {
     console.log('Service Worker installing.');

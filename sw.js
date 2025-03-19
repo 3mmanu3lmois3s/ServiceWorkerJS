@@ -38,68 +38,54 @@ self.addEventListener('fetch', function(event) {
         const relativePath = requestUrl.pathname.substring(basePath.length);
         console.log('Service Worker: relativePath is:', relativePath);
 
-        let [route, ...params] = relativePath.split('/').filter(part => part !== '');
         const method = event.request.method;
         console.log('Service Worker: method is:', method);
 
-
-        try{
-            if (route === 'customers' && method === 'POST') {
+        try {
+            if (relativePath.startsWith('customers') && method === 'POST') {
                 // Create Customer
                 console.log("Entra en customers post");
                 event.respondWith(handleCreateCustomer(event.request));
-
-            } else if (route === 'products' && method === 'GET') {
+            } else if (relativePath === 'products' && method === 'GET') {
                 // Get Products
-                 event.respondWith(handleGetProducts());
-            }
-            else if (route === 'customers' && params[0] === 'quotes' && method === 'POST') {
+                event.respondWith(handleGetProducts());
+            } else if (relativePath.startsWith('customers') && relativePath.includes('quotes') && method === 'POST') {
                 // Start Quote
                 console.log("Entra en quotes post");
-                const customerId = params[0];
+                const customerId = relativePath.split('/')[1]; // Extract customerId
                 event.respondWith(handleStartQuote(customerId, event.request));
-            }
-            else if (route === 'customers' && params[0] === 'quotes' && method === 'PUT') {
+            } else if (relativePath.startsWith('customers') && relativePath.includes('quotes') && method === 'PUT') {
                 // Update Quote
-                const [customerId, _, quoteId] = params;
-                 console.log("Entra en quotes put");
+                const [_, customerId, __, quoteId] = relativePath.split('/'); // Extract customerId and quoteId
+                console.log("Entra en quotes put");
                 event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
-            }
-            else if (route === 'customers' && params[0] === 'quotes' && params[2] === 'calculate' && method === 'POST') {
+            } else if (relativePath.startsWith('customers') && relativePath.includes('quotes') && relativePath.includes('calculate') && method === 'POST') {
                 // Calculate Premium
-                const [customerId, _, quoteId] = params;
+                const [_, customerId, __, quoteId] = relativePath.split('/'); // Extract customerId and quoteId
                 event.respondWith(handleCalculatePremium(customerId, quoteId));
-            }
-            else if (route === 'customers' && params[0] === 'quotes' && params[2] === 'accept' && method === 'POST') {
+            } else if (relativePath.startsWith('customers') && relativePath.includes('quotes') && relativePath.includes('accept') && method === 'POST') {
                 // Accept Quote
-                const [customerId, _, quoteId] = params;
+                const [_, customerId, __, quoteId] = relativePath.split('/'); // Extract customerId and quoteId
                 event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
-            }
-
-            else if (route === 'customers' && params[0] === 'policies' && method === 'GET') {
+           } else if (relativePath.startsWith('customers') && relativePath.includes('policies') && method === 'GET') {
                 // Get Policy
-                const [customerId, _, policyId] = params;
+               const [_, customerId, __, policyId] = relativePath.split('/'); // Extract customerId and quoteId
                 event.respondWith(handleGetPolicy(customerId, policyId));
-            }
-
-            else if(route === 'customers' && params[0] === 'claims' && method === 'POST'){
-                //File a claim
-                const customerId = params[0];
+            } else if (relativePath.startsWith('customers') && relativePath.includes('claims') && method === 'POST') {
+                // File a Claim
+                const customerId = relativePath.split('/')[1];
                 event.respondWith(handleFileClaim(customerId, event.request));
-            }
-            else if(route === 'customers' && params[0] === 'claims' && method === 'GET'){
-                const [customerId, _, claimId] = params;
+            } else if (relativePath.startsWith('customers') && relativePath.includes('claims') && method === 'GET') {
+                // Get Claim
+                const [_, customerId, __, claimId] = relativePath.split('/'); // Extract customerId and quoteId
                 event.respondWith(handleGetClaim(customerId, claimId));
-            }
-
-            else if (route === 'customers' && params[0] === 'policies' && params[2] === 'renewal' && method === 'GET') {
+            } else if (relativePath.startsWith('customers') && relativePath.includes('policies') && relativePath.includes('renewal') && method === 'GET') {
                 // Get Renewal Info
-                const [customerId, _, policyId] = params;
+                const [_, customerId, __, policyId] = relativePath.split('/'); // Extract customerId and quoteId
                 event.respondWith(handleGetRenewalInfo(customerId, policyId));
-            }
-            else if (route === 'customers' && params[0] === 'policies' && params[2] === 'renew' && method === 'POST') {
+            } else if (relativePath.startsWith('customers') && relativePath.includes('policies') && relativePath.includes('renew') && method === 'POST') {
                 // Renew Policy
-                const [customerId, _, policyId] = params;
+                const [_, customerId, __, policyId] = relativePath.split('/'); // Extract customerId and quoteId
                 event.respondWith(handleRenewPolicy(customerId, policyId, event.request));
             }
             else {

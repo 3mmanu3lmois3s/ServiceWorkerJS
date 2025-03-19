@@ -1,9 +1,10 @@
-// main.js (MODIFICADO)
+// main.js (CORREGIDO - Opción 2 - MEJORADO)
 // --- Service Worker Registration ---
 let newWorker; // Variable global para el nuevo service worker
+const basePath = '/ServiceWorkerJS';
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/ServiceWorkerJS/sw.js') // Ruta ABSOLUTA correcta
+    navigator.serviceWorker.register(basePath + '/sw.js')
         .then(registration => {
             console.log('Service Worker registered with scope:', registration.scope);
 
@@ -23,26 +24,23 @@ if ('serviceWorker' in navigator) {
                     }
                 });
             });
-
         })
         .catch(error => {
             console.log('Service Worker registration failed:', error);
         });
 }
 
-// --- Event Listeners para los Botones ---
-
-document.getElementById('fetchData').addEventListener('click', () => fetchData('/api/data'));
-document.getElementById('fetchUsers').addEventListener('click', () => fetchData('/api/users'));
-document.getElementById('fetchUser123').addEventListener('click', () => fetchData('/api/user/123'));
-document.getElementById('updateSW').addEventListener('click', () => {
-  if (newWorker) {
-    newWorker.postMessage({ action: 'skipWaiting' });
-  }
+// --- Event Listener para los Botones (Centralizado) ---
+document.addEventListener('click', function(event) {
+    if (event.target.matches('[data-api-url]')) { // Usar un atributo de datos
+        const apiUrl = basePath + event.target.dataset.apiUrl;
+        fetchData(apiUrl);
+    } else if (event.target.id === 'updateSW' && newWorker) {
+        newWorker.postMessage({ action: 'skipWaiting' });
+    }
 });
 
 // --- Función fetchData (reutilizable) ---
-
 function fetchData(url) {
     fetch(url)
         .then(response => {
@@ -66,7 +64,6 @@ function showUpdateButton() {
 }
 
 // ---  Online/Offline Status ---
-
 function updateOnlineStatus() {
     document.getElementById('status').textContent = navigator.onLine ? 'Online' : 'Offline';
 }
@@ -74,11 +71,3 @@ function updateOnlineStatus() {
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus(); // Llamar al inicio
-
-// --- Recargar la página cuando el Service Worker cambie --- (COMENTADO)
-// let refreshing;
-// navigator.serviceWorker.addEventListener('controllerchange', () => {
-//     if (refreshing) return;
-//     window.location.reload();
-//     refreshing = true;
-// });

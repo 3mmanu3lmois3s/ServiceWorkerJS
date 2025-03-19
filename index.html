@@ -1,30 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Worker API Demo</title>
-    <style>
-        body { font-family: sans-serif; }
-        button { margin: 0.5em; padding: 0.5em 1em; cursor: pointer; }
-        pre { border: 1px solid #ccc; padding: 1em; background-color: #f9f9f9; }
-        #status { margin-left: 1em; font-weight: bold; }
-        #updateSW { display: none; background-color: #4CAF50; color: white; border: none;}
-    </style>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Service Worker API Demo</title>
+   <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
-    <h1>Service Worker API Demo</h1>
-
-    <button id="fetchData">Fetch Data (/api/data)</button>
-    <button id="fetchUsers">Fetch Users (/api/users)</button>
-    <button id="fetchUser123">Fetch User 123 (/api/user/123)</button>
-    <button id="updateSW">Update Service Worker</button> 
-
-    <h2>Response:</h2>
-    <pre id="response"></pre>
-
-    <p>Status: <span id="status"></span></p>
-
-    <script src="main.js" defer></script>
+   <h1>Service Worker API Demo</h1>
+   <div>
+       <button data-api-url="/api/data">Fetch Data (/api/data)</button>
+       <button data-api-url="/api/users">Fetch Users (/api/users)</button>
+       <button data-api-url="/api/user/123">Fetch User 123 (/api/user/123)</button>
+       <button id="updateSW" style="display: none;">Update Service Worker</button>
+   </div>
+   <pre id="response"></pre>
+   <p>Status: <span id="status"></span></p>
+   <script src="/ServiceWorkerJS/main.js"></script>
 </body>
 </html>

@@ -1,20 +1,19 @@
-// main.js (CORREGIDO - Opción 2 - MEJORADO)
-// --- Service Worker Registration ---
-let newWorker; // Variable global para el nuevo service worker
-const basePath = '/ServiceWorkerJS';
+// main.js
+let newWorker; // Variable to hold the new (waiting) service worker
+const basePath = '/ServiceWorkerJS'; // Base path for GitHub Pages
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register(basePath + '/sw.js')
         .then(registration => {
             console.log('Service Worker registered with scope:', registration.scope);
 
-            // Detectar si hay un nuevo service worker esperando
+            // Check for a waiting service worker
             if (registration.waiting) {
                 newWorker = registration.waiting;
                 showUpdateButton();
             }
 
-            // Detectar cambios en la instalación del service worker
+            // Listen for a new service worker being installed
             registration.addEventListener('updatefound', () => {
                 newWorker = registration.installing;
 
@@ -30,9 +29,9 @@ if ('serviceWorker' in navigator) {
         });
 }
 
-// --- Event Listener para los Botones (Centralizado) ---
+// Centralized click handler for all buttons
 document.addEventListener('click', function(event) {
-    if (event.target.matches('[data-api-url]')) { // Usar un atributo de datos
+    if (event.target.matches('[data-api-url]')) {
         const apiUrl = basePath + event.target.dataset.apiUrl;
         fetchData(apiUrl);
     } else if (event.target.id === 'updateSW' && newWorker) {
@@ -40,7 +39,6 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// --- Función fetchData (reutilizable) ---
 function fetchData(url) {
     fetch(url)
         .then(response => {
@@ -58,16 +56,22 @@ function fetchData(url) {
         });
 }
 
-// --- Función para mostrar el botón de actualización ---
 function showUpdateButton() {
     document.getElementById('updateSW').style.display = 'block';
 }
 
-// ---  Online/Offline Status ---
 function updateOnlineStatus() {
     document.getElementById('status').textContent = navigator.onLine ? 'Online' : 'Offline';
 }
 
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
-updateOnlineStatus(); // Llamar al inicio
+updateOnlineStatus(); // Initial status update
+
+// Prevent automatic reload on controller change (we handle it manually)
+// let refreshing;  // No longer needed
+// navigator.serviceWorker.addEventListener('controllerchange', () => {
+//     if (refreshing) return;
+//     window.location.reload();
+//     refreshing = true;
+// });

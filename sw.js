@@ -30,6 +30,37 @@ self.addEventListener('activate', function(event) {
     event.waitUntil(clients.claim());
 });
 
+// *** Helper Function to Determine Route ***
+function getRoute(relativePath, method) {
+  const params = relativePath.split('/').filter(part => part !== '');
+
+    if (params[0] === 'customers') {
+        if (method === 'POST' && params.length === 1) {
+            return 'createCustomer';
+        } else if (method === 'POST' && params[2] === 'quotes' && params.length === 3) {
+            return 'startQuote';
+        } else if (method === 'PUT' && params[2] === 'quotes' && params.length === 4) {
+            return 'updateQuote';
+        } else if (method === 'POST' && params[2] === 'quotes' && params[4] === 'calculate' && params.length === 5) {
+            return 'calculatePremium';
+        } else if (method === 'POST' && params[2] === 'quotes' && params[4] === 'accept' && params.length === 5) {
+            return 'acceptQuote';
+        } else if (method === 'GET' && params[2] === 'policies' && params.length === 4) {
+            return 'getPolicy';
+        } else if (method === 'POST' && params[2] === 'claims' && params.length === 3) {
+            return 'fileClaim';
+        } else if (method === 'GET' && params[2] === 'claims' && params.length === 4) {
+            return 'getClaim';
+        } else if (method === 'GET' && params[2] === 'policies' && params[4] === 'renewal' && params.length === 5) {
+            return 'getRenewalInfo';
+        } else if (method === 'POST' && params[2] === 'policies' && params[4] === 'renew' && params.length === 5) {
+            return 'renewPolicy';
+        }
+    } else if (relativePath === 'products' && method === 'GET') {
+        return 'getProducts';
+    }
+    return 'unknown'; // Default case
+}
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
     console.log('Service Worker: Fetch event for', requestUrl.href);
@@ -39,65 +70,50 @@ self.addEventListener('fetch', function(event) {
         console.log('Service Worker: relativePath is:', relativePath);
         const method = event.request.method;
 
-        // *** Re-introduce params extraction ***
+        // *** Use the helper function ***
+        const route = getRoute(relativePath, method);
         const params = relativePath.split('/').filter(part => part !== '');
 
 
         try {
-            switch (params[0]) { // Switch on the FIRST part of the path
-                case 'customers':
-                    if (method === 'POST' && params.length === 1) {
-                        console.log("Entra en customers post");
-                        event.respondWith(handleCreateCustomer(event.request));
-                    } else if (method === 'POST' && params[2] === 'quotes' && params.length === 3) {
-                        console.log("Entra en quotes post");
-                        const customerId = params[1];
-                        event.respondWith(handleStartQuote(customerId, event.request));
-                    } else if (method === 'PUT' && params[2] === 'quotes' && params.length === 4) {
-                        console.log("Entra en quotes put");
-                        const customerId = params[1];
-                        const quoteId = params[3];
-                        event.respondWith(handleUpdateQuote(customerId, quoteId, event.request));
-                    } else if (method === 'POST' && params[2] === 'quotes' && params[4] === 'calculate' && params.length === 5) {
-                         const customerId = params[1];
-                         const quoteId = params[3];
-                        event.respondWith(handleCalculatePremium(customerId, quoteId));
-                    } else if (method === 'POST' && params[2] === 'quotes' && params[4] === 'accept' && params.length === 5) {
-                        const customerId = params[1];
-                        const quoteId = params[3];
-                        event.respondWith(handleAcceptQuote(customerId, quoteId, event.request));
-                    } else if (method === 'GET' && params[2] === 'policies' && params.length === 4) {
-                        const customerId = params[1];
-                        const policyId = params[3];
-                        event.respondWith(handleGetPolicy(customerId, policyId));
-                    } else if (method === 'POST' && params[2] === 'claims' && params.length === 3) {
-                        console.log("Entra en file claim");
-                        const customerId = params[1];
-                        event.respondWith(handleFileClaim(customerId, event.request));
-                    } else if (method === 'GET' && params[2] === 'claims' && params.length === 4) {
-                        const customerId = params[1];
-                        const claimId = params[3];
-                        event.respondWith(handleGetClaim(customerId, claimId));
-                    } else if (method === 'GET' && params[2] === 'policies' && params[4] === 'renewal' && params.length === 5) {
-                        const customerId = params[1];
-                        const policyId = params[3];
-                        event.respondWith(handleGetRenewalInfo(customerId, policyId));
-                    } else if (method === 'POST' && params[2] === 'policies' && params[4] === 'renew' && params.length === 5) {
-                        const customerId = params[1];
-                        const policyId = params[3];
-                        event.respondWith(handleRenewPolicy(customerId, policyId, event.request));
-                    } else {
-                        console.log('Service Worker: Passing request to network (Unhandled customer route):', event.request.url);
-                        event.respondWith(fetch(event.request));
-                    }
-                    break; //VERY IMPORTANT
-
-                case 'products':
-                    if (method === 'GET') {
-                        event.respondWith(handleGetProducts());
-                    }
+            switch (route) {
+                case 'createCustomer':
+                    console.log("Entra en customers post");
+                    event.respondWith(handleCreateCustomer(event.request));
                     break;
-
+                case 'getProducts':
+                    event.respondWith(handleGetProducts());
+                    break;
+                case 'startQuote':
+                    console.log("Entra en quotes post");
+                    event.respondWith(handleStartQuote(params[1], event.request));
+                    break;
+                case 'updateQuote':
+                    console.log("Entra en quotes put");
+                    event.respondWith(handleUpdateQuote(params[1], params[3], event.request));
+                    break;
+                case 'calculatePremium':
+                    event.respondWith(handleCalculatePremium(params[1], params[3]));
+                    break;
+                case 'acceptQuote':
+                    event.respondWith(handleAcceptQuote(params[1], params[3], event.request));
+                    break;
+                case 'getPolicy':
+                    event.respondWith(handleGetPolicy(params[1], params[3]));
+                    break;
+                case 'fileClaim':
+                    console.log("Entra en file claim");
+                    event.respondWith(handleFileClaim(params[1], event.request));
+                    break;
+                case 'getClaim':
+                    event.respondWith(handleGetClaim(params[1], params[3]));
+                    break;
+                case 'getRenewalInfo':
+                    event.respondWith(handleGetRenewalInfo(params[1], params[3]));
+                    break;
+                case 'renewPolicy':
+                    event.respondWith(handleRenewPolicy(params[1], params[3], event.request));
+                    break;
                 default:
                     console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
                     event.respondWith(fetch(event.request));

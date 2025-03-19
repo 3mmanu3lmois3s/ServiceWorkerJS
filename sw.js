@@ -3,6 +3,7 @@ const basePath = '/ServiceWorkerJS'; // Define basePath para GitHub Pages
 
 self.addEventListener('install', function(event) {
     console.log('Service Worker installing.');
+    event.waitUntil(self.skipWaiting()); // Forzar la activación inmediata
     // Opcional: Precargar recursos en caché aquí (si quieres funcionalidad offline)
     // event.waitUntil(
     //     caches.open('my-cache-v1').then(cache => {
@@ -18,6 +19,7 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
+    event.waitUntil(clients.claim()); // Tomar el control de las páginas inmediatamente
     // Opcional: Limpiar cachés antiguas aquí
 });
 
@@ -50,9 +52,13 @@ self.addEventListener('fetch', function(event) {
     }
 });
 
-// Escuchar el mensaje para saltar la espera (skipWaiting)
+// Ya no necesitas el listener para 'message' si usas skipWaiting() en 'install'
+// y clients.claim() en 'activate'.  Lo dejo comentado por si lo quieres usar
+// en un futuro con una lógica diferente.
+/*
 self.addEventListener('message', event => {
     if (event.data && event.data.action === 'skipWaiting') {
         self.skipWaiting();
     }
 });
+*/

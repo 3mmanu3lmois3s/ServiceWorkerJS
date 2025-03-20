@@ -60,6 +60,7 @@ async function testHttpMethods() {
     }
 }
 
+
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
     console.log('Service Worker: Fetch event for', requestUrl.href);
@@ -90,8 +91,7 @@ self.addEventListener('fetch', function(event) {
                 }
             }
 
-
-            // Top-level routes
+            // Top-level routes and nested routes
             if (relativePath === 'products' && method === 'GET') {
                  event.respondWith(handleGetProducts());
             } else if (route === 'customers') {

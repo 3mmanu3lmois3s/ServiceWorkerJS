@@ -11,7 +11,7 @@ let db;
 
 function openDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 1); // Version 1
+        const request = indexedDB.open(dbName, 1);
 
         request.onerror = (event) => {
             console.error('IndexedDB error:', event.target.error);
@@ -26,12 +26,8 @@ function openDB() {
 
         request.onupgradeneeded = (event) => {
             db = event.target.result;
-            // Create the object store if it doesn't exist
             if (!db.objectStoreNames.contains(storeName)) {
-                const objectStore = db.createObjectStore(storeName, { keyPath: 'id' });
-                // You can create indexes here if needed:
-                // objectStore.createIndex('name', 'name', { unique: false });
-                // objectStore.createIndex('email', 'email', { unique: true });
+                db.createObjectStore(storeName, { keyPath: 'id' });
             }
             console.log('IndexedDB upgraded and object store created');
         };
@@ -47,7 +43,7 @@ async function addCustomerToDB(customerData) {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([storeName], 'readwrite');
         const store = transaction.objectStore(storeName);
-        const customerId = `cust-${Date.now()}`; // Unique ID
+        const customerId = `cust-${Date.now()}`;
         const customer = { ...customerData, id: customerId };
         const request = store.add(customer);
 
@@ -65,7 +61,7 @@ async function addCustomerToDB(customerData) {
 
 async function getCustomerFromDB(customerId) {
   if (!db) {
-        await openDB(); //Ensure DB is open.
+        await openDB();
     }
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([storeName], 'readonly');
@@ -78,7 +74,7 @@ async function getCustomerFromDB(customerId) {
                 resolve(request.result);
             } else {
                 console.log('Customer not found in IndexedDB:', customerId);
-                resolve(null); // Resolve with null if not found
+                resolve(null);
             }
         };
 
@@ -89,7 +85,27 @@ async function getCustomerFromDB(customerId) {
     });
 }
 
+// New function to get ALL customers from IndexedDB
+async function getAllCustomersFromDB() {
+    if (!db) {
+        await openDB();
+    }
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll(); // Use getAll() to get all customers
 
+        request.onsuccess = () => {
+            console.log('All customers retrieved from IndexedDB:', request.result);
+            resolve(request.result); // Resolve with the array of customers
+        };
+
+        request.onerror = (event) => {
+            console.error('Error getting all customers from IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
 
 // --- Event Listeners ---
 
@@ -100,13 +116,10 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
-    event.waitUntil(clients.claim().then(()=>{
-        //Open de DB.
+    event.waitUntil(clients.claim().then(() => {
         openDB();
     }));
 });
-
-
 
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
@@ -119,30 +132,31 @@ self.addEventListener('fetch', function(event) {
         console.log('Service Worker: Method is:', method);
 
         if (relativePath === 'api/data') {
-            console.log('Service Worker: Handling /api/data');
             event.respondWith(
                 new Response(JSON.stringify({ message: 'Hello from Service Worker! (data)' }), {
                     headers: { 'Content-Type': 'application/json' }
                 })
             );
         } else if (relativePath === 'api/users') {
-            console.log('Service Worker: Handling /api/users');
             event.respondWith(
                 new Response(JSON.stringify([{ id: 1, name: 'John Doe' }, { id: 2, name: 'Jane Doe' }]), {
                     headers: { 'Content-Type': 'application/json' }
                 })
             );
         } else if (relativePath.startsWith('api/user/')) {
-            console.log('Service Worker: Handling /api/user/');
             const userId = relativePath.substring('api/user/'.length);
             event.respondWith(
                 new Response(JSON.stringify({ id: userId, name: 'User ' + userId }), {
                     headers: { 'Content-Type': 'application/json' }
                 })
             );
-        } else if (relativePath.startsWith('api/customers') && method === 'POST') {
+        } else if (relativePath === 'api/customers' && method === 'POST') {
             console.log('Service Worker: Handling POST /api/customers');
             event.respondWith(handleCreateCustomer(event.request));
+        //CHANGED:  Handle GET /api/customers (no ID) to get ALL customers.
+        } else if (relativePath === 'api/customers' && method === 'GET') {
+              console.log('Service Worker: Handling GET /api/customers (all customers)');
+              event.respondWith(handleGetAllCustomers());
         } else if (relativePath.startsWith('api/customers/') && method === 'GET') {
             console.log('Service Worker: Handling GET /api/customers/{id}');
             const customerId = relativePath.split('/')[2];
@@ -157,8 +171,6 @@ self.addEventListener('fetch', function(event) {
     }
 });
 
-
-
 // --- Request Handlers (using IndexedDB helpers) ---
 
 async function handleCreateCustomer(request) {
@@ -166,7 +178,7 @@ async function handleCreateCustomer(request) {
         const body = await request.json();
         console.log('Service Worker: Received customer data:', body);
 
-        const customerId = await addCustomerToDB(body); // Add to IndexedDB
+        const customerId = await addCustomerToDB(body);
 
         return new Response(JSON.stringify({ customerId: customerId }), {
             headers: { 'Content-Type': 'application/json' }
@@ -183,7 +195,7 @@ async function handleCreateCustomer(request) {
 
 async function handleGetCustomer(customerId) {
     try {
-        const customer = await getCustomerFromDB(customerId); // Get from IndexedDB
+        const customer = await getCustomerFromDB(customerId);
 
         if (customer) {
             return new Response(JSON.stringify(customer), {
@@ -197,6 +209,22 @@ async function handleGetCustomer(customerId) {
         }
     } catch (error) {
         console.error('Service Worker: Error in handleGetCustomer:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// New handler for getting ALL customers
+async function handleGetAllCustomers() {
+    try {
+        const allCustomers = await getAllCustomersFromDB(); // Get all from IndexedDB
+        return new Response(JSON.stringify(allCustomers), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        console.error('Service Worker: Error in handleGetAllCustomers:', error);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

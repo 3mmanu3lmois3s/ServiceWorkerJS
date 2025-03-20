@@ -29,14 +29,16 @@ if ('serviceWorker' in navigator) {
 
 document.addEventListener('click', function(event) {
     if (event.target.matches('[data-api-url]')) {
-        const apiUrl = event.target.dataset.apiUrl; // Get the FULL URL
+        const apiUrl = event.target.dataset.apiUrl;
         fetchData(apiUrl);
     } else if (event.target.id === 'updateSW' && newWorker) {
         newWorker.postMessage({ action: 'skipWaiting' });
     } else if (event.target.id === 'createCustomer') {
-        createCustomer(); // Call the createCustomer function
+        createCustomer();
     } else if (event.target.id === 'getCustomer') {
-        getCustomer(); // Call the getCustomer function
+        getCustomer();
+    } else if (event.target.id === 'getAllCustomers') { // New event listener
+        getAllCustomers();
     }
 });
 
@@ -69,8 +71,6 @@ window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus();
 
-
-// --- Create Customer Functionality ---
 async function createCustomer() {
     const name = document.getElementById('customerName').value;
     const email = document.getElementById('customerEmail').value;
@@ -81,7 +81,7 @@ async function createCustomer() {
     }
 
     const customerData = { name, email };
-    console.log('Sending customer data:', customerData); // Log the data being sent
+    console.log('Sending customer data:', customerData);
 
     try {
         const response = await fetch('/ServiceWorkerJS/api/customers', {
@@ -92,7 +92,7 @@ async function createCustomer() {
             body: JSON.stringify(customerData)
         });
 
-        console.log('Response from server:', response); // Log the raw response
+        console.log('Response from server:', response);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -100,7 +100,7 @@ async function createCustomer() {
         }
 
         const responseData = await response.json();
-        console.log('Parsed response data:', responseData); // Log the parsed JSON
+        console.log('Parsed response data:', responseData);
         document.getElementById('response').textContent = JSON.stringify(responseData, null, 2);
 
     } catch (error) {
@@ -109,7 +109,6 @@ async function createCustomer() {
     }
 }
 
-// --- Get Customer Functionality ---
 async function getCustomer() {
     const customerId = document.getElementById('getCustomerId').value;
 
@@ -133,6 +132,26 @@ async function getCustomer() {
 
     } catch (error) {
         console.error('Error getting customer:', error);
+        document.getElementById('response').textContent = 'Error: ' + error.message;
+    }
+}
+
+// New function to get all customers
+async function getAllCustomers() {
+    try {
+        const response = await fetch('/ServiceWorkerJS/api/customers', { // No ID needed
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+
+        const customers = await response.json();
+        document.getElementById('response').textContent = JSON.stringify(customers, null, 2);
+    } catch (error) {
+        console.error('Error getting all customers:', error);
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }

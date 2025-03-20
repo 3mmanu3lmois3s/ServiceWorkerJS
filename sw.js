@@ -2,9 +2,9 @@
 /*jshint esversion: 6 */
 /*jshint worker: true */
 const basePath = '/ServiceWorkerJS/';
-const dbName = 'insuranceDB'; // Changed database name
+const dbName = 'insuranceDB';
 const customerStoreName = 'customers';
-const messageStoreName = 'messages'; // New object store
+const messageStoreName = 'messages';
 let db;
 
 // --- IndexedDB Setup ---
@@ -142,74 +142,76 @@ async function searchData(terms) {
     if (!db) {
         await openDB();
     }
-    const searchTerms = terms.toLowerCase().split(/\s+/).filter(term => term !== ''); // Split and normalize
+    const searchTerms = terms.toLowerCase().split(/\s+/).filter(term => term !== '');
     if (searchTerms.length === 0) {
-        return []; // Return empty array if no search terms
+        return [];
     }
 
     const results = [];
 
-    // Helper function to check if an object matches the search terms
     function objectMatchesTerms(obj, terms) {
         for (const key in obj) {
             if (obj.hasOwnProperty(key)) {
                 const value = obj[key];
-                // Check string values for matches
                 if (typeof value === 'string' && terms.some(term => value.toLowerCase().includes(term))) {
-                    return true; // Match found in string value
-                }
-                // Recursively check nested objects
-                else if (typeof value === 'object' && value !== null) {
+                    return true;
+                } else if (typeof value === 'object' && value !== null) {
                     if (objectMatchesTerms(value, terms)) {
-                        return true; // Match found in nested object
+                        return true;
                     }
                 }
             }
         }
-        return false; // No match found in this object
+        return false;
     }
 
 
-    // Search the 'customers' store
+    // Search the 'customers' store (no changes here)
     const customerTransaction = db.transaction([customerStoreName], 'readonly');
     const customerStore = customerTransaction.objectStore(customerStoreName);
     const customerRequest = customerStore.getAll();
     await new Promise((resolve, reject) => {
-      customerRequest.onsuccess = () => {
-          const customers = customerRequest.result;
-          //Filter customers
-          const matchedCustomers = customers.filter(customer => objectMatchesTerms(customer, searchTerms));
-          results.push(...matchedCustomers.map(customer => ({...customer, type: 'customer'}))); //add type for display
-          resolve();
-      };
-      customerRequest.onerror = () => reject(customerRequest.error);
+        customerRequest.onsuccess = () => {
+            const customers = customerRequest.result;
+            const matchedCustomers = customers.filter(customer => objectMatchesTerms(customer, searchTerms));
+            results.push(...matchedCustomers.map(customer => ({ ...customer, type: 'customer' })));
+            resolve();
+        };
+        customerRequest.onerror = () => reject(customerRequest.error);
     });
 
-
-    // Search the 'messages' store
+    // Search the 'messages' store (MODIFIED LOGIC)
     const messageTransaction = db.transaction([messageStoreName], 'readonly');
     const messageStore = messageTransaction.objectStore(messageStoreName);
     const messageRequest = messageStore.getAll();
-     await new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
         messageRequest.onsuccess = () => {
-          const messages = messageRequest.result;
+            const messages = messageRequest.result;
+            const matchedMessages = [];
 
-          // Filter messages that match ANY of the search terms in their values
-          const matchedMessages = messages.filter(message => {
-            return searchTerms.some(term => {
-                return Object.values(message).some(value =>
-                    typeof value === 'string' && value.toLowerCase().includes(term)
-                );
+            messages.forEach(message => {
+                if (Array.isArray(message)) {
+                    // If it's an array, iterate through each element
+                    message.forEach(item => {
+                        if (objectMatchesTerms(item, searchTerms)) {
+                            matchedMessages.push({...item, type: "message"}); // Add individual item
+                        }
+                    });
+                } else if (typeof message === 'object' && message !== null) {
+                    // If it's a single object
+                    if (objectMatchesTerms(message, searchTerms)) {
+                        matchedMessages.push({...message, type: "message"});
+                    }
+                }
+                // Ignore other types (shouldn't happen, but good to be defensive)
             });
-          });
 
-          results.push(...matchedMessages.map(message => ({...message, type: 'message'}))); // Add type
-          resolve();
+            results.push(...matchedMessages);
+            resolve();
         };
-        messageRequest.onerror = () => {
-          reject(messageRequest.error)
-        };
+        messageRequest.onerror = () => reject(messageRequest.error);
     });
+
     return results;
 }
 

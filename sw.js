@@ -77,17 +77,14 @@ self.addEventListener('fetch', function(event) {
             if (relativePath.startsWith('test/')) {
                 if (relativePath === 'test/get' && method === 'GET') {
                     event.respondWith(new Response(JSON.stringify({ message: 'GET test successful' }), { headers: { 'Content-Type': 'application/json' } }));
-                    return; // IMPORTANT: Return after handling
                 } else if (relativePath === 'test/post' && method === 'POST') {
                     event.respondWith(new Response(JSON.stringify({ message: 'POST test successful' }), { headers: { 'Content-Type': 'application/json' } }));
-                    return; // IMPORTANT: Return after handling
                 } else if (relativePath === 'test/put' && method === 'PUT') {
                     event.respondWith(new Response(JSON.stringify({ message: 'PUT test successful' }), { headers: { 'Content-Type': 'application/json' } }));
-                    return; // IMPORTANT: Return after handling
                 } else if (relativePath === 'test/delete' && method === 'DELETE') {
                     event.respondWith(new Response(JSON.stringify({ message: 'DELETE test successful' }), { headers: { 'Content-Type': 'application/json' } }));
-                    return; // IMPORTANT: Return after handling
                 }
+                return; // IMPORTANT: Return after handling ANY test route
             }
 
             // Top-level routes and nested routes
@@ -339,7 +336,7 @@ async function handleRenewPolicy(customerId, policyId, request){
     }
      //Update policy
     policy.startDate = endDate.toISOString();
-    policy.endDate = new Date(new Date(endDate).setFullYear(endDate().getFullYear() + 1)).toISOString(); // One year later
+    policy.endDate = new Date(new Date(endDate).setFullYear(endDate.getFullYear() + 1)).toISOString(); // One year later
 
     return new Response(JSON.stringify({success: true}), {
         headers: { 'Content-Type': 'application/json' }

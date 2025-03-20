@@ -73,6 +73,24 @@ self.addEventListener('fetch', function(event) {
         const [route, customerId, quotesOrPolicies, quoteOrPolicyId, action] = relativePath.split('/').filter(part => part !== '');
 
         try {
+            // Test routes (handle them BEFORE the other routes)
+            if (relativePath.startsWith('test/')) {
+                if (relativePath === 'test/get' && method === 'GET') {
+                    event.respondWith(new Response(JSON.stringify({ message: 'GET test successful' }), { headers: { 'Content-Type': 'application/json' } }));
+                    return; // IMPORTANT: Return after handling
+                } else if (relativePath === 'test/post' && method === 'POST') {
+                    event.respondWith(new Response(JSON.stringify({ message: 'POST test successful' }), { headers: { 'Content-Type': 'application/json' } }));
+                    return; // IMPORTANT: Return after handling
+                } else if (relativePath === 'test/put' && method === 'PUT') {
+                    event.respondWith(new Response(JSON.stringify({ message: 'PUT test successful' }), { headers: { 'Content-Type': 'application/json' } }));
+                    return; // IMPORTANT: Return after handling
+                } else if (relativePath === 'test/delete' && method === 'DELETE') {
+                    event.respondWith(new Response(JSON.stringify({ message: 'DELETE test successful' }), { headers: { 'Content-Type': 'application/json' } }));
+                    return; // IMPORTANT: Return after handling
+                }
+            }
+
+
             // Top-level routes
             if (relativePath === 'products' && method === 'GET') {
                  event.respondWith(handleGetProducts());
@@ -130,16 +148,6 @@ self.addEventListener('fetch', function(event) {
 });
 
 // --- Helper Functions (sw.js) ---
-
-// Test Routes
-async function handleTest(request){
-     const method = request.method;
-     return new Response(JSON.stringify({message: `Test route accessed with method: ${method}`}), {
-        headers: { 'Content-Type': 'application/json' }
-    });
-}
-
-
 async function handleCreateCustomer(request) {
     const body = await request.json();
     const customerId = `cust${nextCustomerId++}`; // Simple ID generation

@@ -27,8 +27,38 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
-    event.waitUntil(clients.claim());
+    event.waitUntil(clients.claim().then(() => {
+        // Run the self-tests AFTER claiming clients
+        testHttpMethods();
+    }));
 });
+
+async function testHttpMethods() {
+    const testUrls = [
+        { url: `${basePath}test/get`, method: 'GET' },
+        { url: `${basePath}test/post`, method: 'POST', body: JSON.stringify({ test: 'data' }) },
+        { url: `${basePath}test/put`, method: 'PUT', body: JSON.stringify({ test: 'data' }) },
+        { url: `${basePath}test/delete`, method: 'DELETE' },
+    ];
+
+    for (const { url, method, body } of testUrls) {
+        try {
+            const request = new Request(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: body
+            });
+
+            const response = await self.fetch(request); // Fetch *from itself*!
+            console.log(`Service Worker self-test: ${method} ${url} - Status: ${response.status}`);
+            if (!response.ok) {
+                console.error(`  Error: ${await response.text()}`);
+            }
+        } catch (error) {
+            console.error(`Service Worker self-test: ${method} ${url} - FAILED`, error);
+        }
+    }
+}
 
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
@@ -43,11 +73,11 @@ self.addEventListener('fetch', function(event) {
         const [route, customerId, quotesOrPolicies, quoteOrPolicyId, action] = relativePath.split('/').filter(part => part !== '');
 
         try {
-            // Top-level routes and nested routes
+            // Top-level routes
             if (relativePath === 'products' && method === 'GET') {
-                event.respondWith(handleGetProducts());
+                 event.respondWith(handleGetProducts());
             } else if (route === 'customers') {
-
+                // Handle /customers routes
                 if (!customerId && method === 'POST') { // Create Customer: /customers
                     console.log("Entra en customers post");
                     event.respondWith(handleCreateCustomer(event.request));
@@ -64,7 +94,7 @@ self.addEventListener('fetch', function(event) {
                         event.respondWith(handleAcceptQuote(customerId, quoteOrPolicyId, event.request));
                     }
                 } else if (customerId && quotesOrPolicies === 'policies') { //Handle /customers/:customerId/policies
-                    if (quoteOrPolicyId && !action && method === 'GET') {  // Get Policy: /customers/:customerId/policies/:policyId
+                     if (quoteOrPolicyId && !action && method === 'GET') {  // Get Policy: /customers/:customerId/policies/:policyId
                         event.respondWith(handleGetPolicy(customerId, quoteOrPolicyId));
                     }else if (quoteOrPolicyId && action === 'renewal' && method === 'GET') { // Renewal Info: /customers/:customerId/policies/:policyId/renewal
                         event.respondWith(handleGetRenewalInfo(customerId, quoteOrPolicyId));
@@ -79,8 +109,8 @@ self.addEventListener('fetch', function(event) {
                       event.respondWith(handleGetClaim(customerId, quoteOrPolicyId));
                     }
                 } else {
-                    console.log('Service Worker: Passing request to network (Unhandled customer route):', event.request.url);
-                    event.respondWith(fetch(event.request));
+                  console.log('Service Worker: Passing request to network (Unhandled customer route):', event.request.url);
+                  event.respondWith(fetch(event.request));
                 }
             } else {
                 console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
@@ -100,6 +130,16 @@ self.addEventListener('fetch', function(event) {
 });
 
 // --- Helper Functions (sw.js) ---
+
+// Test Routes
+async function handleTest(request){
+     const method = request.method;
+     return new Response(JSON.stringify({message: `Test route accessed with method: ${method}`}), {
+        headers: { 'Content-Type': 'application/json' }
+    });
+}
+
+
 async function handleCreateCustomer(request) {
     const body = await request.json();
     const customerId = `cust${nextCustomerId++}`; // Simple ID generation

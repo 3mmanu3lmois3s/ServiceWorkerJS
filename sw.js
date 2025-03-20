@@ -1,9 +1,97 @@
 // sw.js
 /*jshint esversion: 6 */
 /*jshint worker: true */
+
 const basePath = '/ServiceWorkerJS/';
-// No longer needed: let nextCustomerId = 1;
-// No longer needed: const customers = {};
+const dbName = 'customerDB';
+const storeName = 'customers';
+
+// --- IndexedDB Setup ---
+let db;
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, 1); // Version 1
+
+        request.onerror = (event) => {
+            console.error('IndexedDB error:', event.target.error);
+            reject(event.target.error);
+        };
+
+        request.onsuccess = (event) => {
+            db = event.target.result;
+            console.log('IndexedDB opened successfully');
+            resolve(db);
+        };
+
+        request.onupgradeneeded = (event) => {
+            db = event.target.result;
+            // Create the object store if it doesn't exist
+            if (!db.objectStoreNames.contains(storeName)) {
+                const objectStore = db.createObjectStore(storeName, { keyPath: 'id' });
+                // You can create indexes here if needed:
+                // objectStore.createIndex('name', 'name', { unique: false });
+                // objectStore.createIndex('email', 'email', { unique: true });
+            }
+            console.log('IndexedDB upgraded and object store created');
+        };
+    });
+}
+
+// --- Helper Functions using IndexedDB ---
+
+async function addCustomerToDB(customerData) {
+    if (!db) {
+        await openDB();
+    }
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const customerId = `cust-${Date.now()}`; // Unique ID
+        const customer = { ...customerData, id: customerId };
+        const request = store.add(customer);
+
+        request.onsuccess = () => {
+            console.log('Customer added to IndexedDB:', customer);
+            resolve(customerId);
+        };
+
+        request.onerror = (event) => {
+            console.error('Error adding customer to IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+async function getCustomerFromDB(customerId) {
+  if (!db) {
+        await openDB(); //Ensure DB is open.
+    }
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.get(customerId);
+
+        request.onsuccess = () => {
+            if (request.result) {
+                console.log('Customer found in IndexedDB:', request.result);
+                resolve(request.result);
+            } else {
+                console.log('Customer not found in IndexedDB:', customerId);
+                resolve(null); // Resolve with null if not found
+            }
+        };
+
+        request.onerror = (event) => {
+            console.error('Error getting customer from IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+
+
+// --- Event Listeners ---
 
 self.addEventListener('install', function(event) {
     console.log('Service Worker installing.');
@@ -12,8 +100,13 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
-    event.waitUntil(clients.claim());
+    event.waitUntil(clients.claim().then(()=>{
+        //Open de DB.
+        openDB();
+    }));
 });
+
+
 
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
@@ -22,7 +115,7 @@ self.addEventListener('fetch', function(event) {
     if (requestUrl.pathname.startsWith(basePath)) {
         const relativePath = requestUrl.pathname.substring(basePath.length);
         console.log('Service Worker: relativePath is:', relativePath);
-        const method = event.request.method; // Get the request method
+        const method = event.request.method;
         console.log('Service Worker: Method is:', method);
 
         if (relativePath === 'api/data') {
@@ -48,14 +141,11 @@ self.addEventListener('fetch', function(event) {
                 })
             );
         } else if (relativePath.startsWith('api/customers') && method === 'POST') {
-            // --- Handle POST request to create a customer ---
             console.log('Service Worker: Handling POST /api/customers');
             event.respondWith(handleCreateCustomer(event.request));
-
         } else if (relativePath.startsWith('api/customers/') && method === 'GET') {
-            // --- Handle GET request to retrieve a customer ---
             console.log('Service Worker: Handling GET /api/customers/{id}');
-            const customerId = relativePath.split('/')[2]; // Extract customer ID
+            const customerId = relativePath.split('/')[2];
             event.respondWith(handleGetCustomer(customerId));
         } else {
             console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
@@ -67,25 +157,17 @@ self.addEventListener('fetch', function(event) {
     }
 });
 
-// Helper function to handle customer creation (using localStorage)
+
+
+// --- Request Handlers (using IndexedDB helpers) ---
+
 async function handleCreateCustomer(request) {
     try {
-        const body = await request.json(); // Parse the request body
-        console.log('Service Worker: Received customer data:', body); // Log received data
+        const body = await request.json();
+        console.log('Service Worker: Received customer data:', body);
 
-        // Get existing customers from localStorage
-        let customers = JSON.parse(localStorage.getItem('customers') || '{}');
+        const customerId = await addCustomerToDB(body); // Add to IndexedDB
 
-        // "Create" the customer (in localStorage)
-        const customerId = `cust-${Date.now()}`; // Use timestamp for unique ID
-        customers[customerId] = { ...body, id: customerId };
-
-        // Save back to localStorage
-        localStorage.setItem('customers', JSON.stringify(customers));
-
-        console.log('Service Worker: Created customer:', customers[customerId]); // Log the created customer
-
-        // Return the new customer's ID
         return new Response(JSON.stringify({ customerId: customerId }), {
             headers: { 'Content-Type': 'application/json' }
         });
@@ -93,35 +175,30 @@ async function handleCreateCustomer(request) {
     } catch (error) {
         console.error('Service Worker: Error in handleCreateCustomer:', error);
         return new Response(JSON.stringify({ error: error.message }), {
-            status: 400, // Bad Request
+            status: 400,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
 
-// Helper function to handle customer retrieval (using localStorage)
 async function handleGetCustomer(customerId) {
     try {
-        // Get customers from localStorage
-        const customers = JSON.parse(localStorage.getItem('customers') || '{}');
+        const customer = await getCustomerFromDB(customerId); // Get from IndexedDB
 
-        // Check if customer exists
-        if (customers[customerId]) {
-            console.log('Service Worker: Found customer:', customers[customerId]);
-            return new Response(JSON.stringify(customers[customerId]), {
+        if (customer) {
+            return new Response(JSON.stringify(customer), {
                 headers: { 'Content-Type': 'application/json' }
             });
         } else {
-            console.log('Service Worker: Customer not found:', customerId);
             return new Response(JSON.stringify({ error: 'Customer not found' }), {
-                status: 404, // Not Found
+                status: 404,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
     } catch (error) {
         console.error('Service Worker: Error in handleGetCustomer:', error);
         return new Response(JSON.stringify({ error: error.message }), {
-            status: 500, // Internal Server Error
+            status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }

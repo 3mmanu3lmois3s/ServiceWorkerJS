@@ -289,26 +289,29 @@ self.addEventListener('fetch', function(event) {
                         headers: { 'Content-Type': 'application/json' }
                     })
                 );
-          // CUSTOMERS
             } else if (apiPath === 'customers' && method === 'POST') {
                 event.respondWith(handleCreateCustomer(event.request));
-            } else if (apiPath === 'customers' && method === 'GET') { // Handle GET for all customers
-                event.respondWith(handleGetAllCustomers());
-            }else if (apiPath.startsWith('customers/') && method === 'GET') {
+            } else if (apiPath === 'customers' && method === 'GET') {
+                event.respondWith(handleGetAllCustomers());  // GET all customers
+            } else if (apiPath.startsWith('customers/') && method === 'GET') {
                 const customerId = apiPath.split('/')[1];
                 event.respondWith(handleGetCustomer(customerId));
-            } // MESSAGES
-              else if (apiPath === 'messages' && method === 'POST') {
+            } else if (apiPath === 'messages' && method === 'POST') {
               event.respondWith(handlePostMessage(event.request));
+            }
+            // *** ADD THIS HANDLER FOR GET ALL MESSAGES ***
+             else if (apiPath === 'messages' && method === 'GET'){
+                event.respondWith(handleGetAllMessages());
             }
              else if (apiPath.startsWith('search') && method === 'GET') {
                 const urlParams = new URLSearchParams(requestUrl.search);
                 const terms = urlParams.get('terms');
                 event.respondWith(handleSearchMessages(terms));
-            } else {
+            }
+             else {
                 // Request for an API endpoint that's not handled
                 console.log('Service Worker: Passing request to network (API endpoint not found):', event.request.url);
-                event.respondWith(fetch(event.request));
+                event.respondWith(fetch(event.request));  // Pass to network
             }
        }else {
             // Request for a non-API resource (e.g., HTML, CSS, JS files)

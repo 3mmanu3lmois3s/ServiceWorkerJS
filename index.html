@@ -10,6 +10,12 @@
         pre { border: 1px solid #ccc; padding: 1em; background-color: #f9f9f9; }
         #status { margin-left: 1em; font-weight: bold; }
         #updateSW { display: none; background-color: #4CAF50; color: white; border: none;}
+        /* Style for input fields */
+        #customerForm input {
+            margin-bottom: 0.5em;
+            padding: 0.3em;
+            border: 1px solid #ccc;
+        }
     </style>
 
 </head>
@@ -20,6 +26,13 @@
         <button data-api-url="/ServiceWorkerJS/api/data">Fetch Data (/api/data)</button>
         <button data-api-url="/ServiceWorkerJS/api/users">Fetch Users (/api/users)</button>
         <button data-api-url="/ServiceWorkerJS/api/user/123">Fetch User 123 (/api/user/123)</button>
+        <div id="customerForm">
+            <h2>Create Customer</h2>
+            <input type="text" id="customerName" placeholder="Customer Name">
+            <input type="text" id="customerEmail" placeholder="Customer Email">
+            <button id="createCustomer">Create Customer</button>
+        </div>
+
         <button id="updateSW" style="display: none;">Update Service Worker</button>
     </div>
 

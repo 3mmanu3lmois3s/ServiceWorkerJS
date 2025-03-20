@@ -27,6 +27,11 @@ if ('serviceWorker' in navigator) {
         });
 }
 
+let customerId;
+let quoteId;
+let policyId;
+let claimId;
+
 document.addEventListener('click', function(event) {
     if (event.target.matches('[data-api-url]')) {
         const apiUrl = event.target.dataset.apiUrl;
@@ -39,6 +44,10 @@ document.addEventListener('click', function(event) {
         getCustomer();
     } else if (event.target.id === 'getAllCustomers') { // New event listener
         getAllCustomers();
+    } else if (event.target.id === 'postMessage') {
+        postMessage();
+    } else if (event.target.id === 'searchMessages') {
+        searchMessages();
     }
 });
 
@@ -135,8 +144,6 @@ async function getCustomer() {
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }
-
-// New function to get all customers
 async function getAllCustomers() {
     try {
         const response = await fetch('/ServiceWorkerJS/api/customers', { // No ID needed
@@ -152,6 +159,73 @@ async function getAllCustomers() {
         document.getElementById('response').textContent = JSON.stringify(customers, null, 2);
     } catch (error) {
         console.error('Error getting all customers:', error);
+        document.getElementById('response').textContent = 'Error: ' + error.message;
+    }
+}
+
+async function postMessage() {
+    const messageData = document.getElementById('messageData').value;
+    if (!messageData) {
+        alert('Please enter JSON data.');
+        return;
+    }
+    if(messageData.length > 3000){
+        alert('The message is too long.');
+        return;
+    }
+
+    try {
+        JSON.parse(messageData); // Validate JSON
+    } catch (error) {
+        alert('Invalid JSON: ' + error.message);
+        return;
+    }
+
+    try {
+        const response = await fetch('/ServiceWorkerJS/api/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(JSON.parse(messageData)) // Send the parsed JSON
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+
+        const responseData = await response.json();
+        document.getElementById('response').textContent = JSON.stringify(responseData, null, 2);
+    } catch (error) {
+        console.error('Error posting message:', error);
+        document.getElementById('response').textContent = 'Error: ' + error.message;
+    }
+}
+async function searchMessages() {
+    const searchTerms = document.getElementById('searchTerms').value;
+    if (!searchTerms) {
+      alert('Please enter search terms.');
+      return;
+    }
+
+    try {
+        // Encode the search terms for the URL
+        const encodedSearchTerms = encodeURIComponent(searchTerms);
+        const response = await fetch(`/ServiceWorkerJS/api/search?terms=${encodedSearchTerms}`, {
+            method: 'GET' // GET is appropriate for searches
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+
+        const results = await response.json();
+        document.getElementById('response').textContent = JSON.stringify(results, null, 2);
+
+    } catch (error) {
+        console.error('Error searching messages:', error);
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }

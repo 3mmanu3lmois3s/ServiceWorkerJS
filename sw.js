@@ -3,15 +3,16 @@
 /*jshint worker: true */
 
 const basePath = '/ServiceWorkerJS/';
-const dbName = 'customerDB';
-const storeName = 'customers';
+const dbName = 'insuranceDB'; // Changed database name
+const customerStoreName = 'customers';
+const messageStoreName = 'messages'; // New object store
+let db;
 
 // --- IndexedDB Setup ---
-let db;
 
 function openDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 1);
+        const request = indexedDB.open(dbName, 2); // Increment version number!
 
         request.onerror = (event) => {
             console.error('IndexedDB error:', event.target.error);
@@ -26,13 +27,22 @@ function openDB() {
 
         request.onupgradeneeded = (event) => {
             db = event.target.result;
-            if (!db.objectStoreNames.contains(storeName)) {
-                db.createObjectStore(storeName, { keyPath: 'id' });
+
+            // Create the customers object store if it doesn't exist
+            if (!db.objectStoreNames.contains(customerStoreName)) {
+                db.createObjectStore(customerStoreName, { keyPath: 'id' });
             }
-            console.log('IndexedDB upgraded and object store created');
+
+            // Create the messages object store if it doesn't exist
+            if (!db.objectStoreNames.contains(messageStoreName)) {
+                db.createObjectStore(messageStoreName, { autoIncrement: true, keyPath: 'id' }); // Auto-incrementing key
+            }
+
+            console.log('IndexedDB upgraded and object stores created/checked');
         };
     });
 }
+
 
 // --- Helper Functions using IndexedDB ---
 
@@ -41,8 +51,8 @@ async function addCustomerToDB(customerData) {
         await openDB();
     }
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
+        const transaction = db.transaction([customerStoreName], 'readwrite');
+        const store = transaction.objectStore(customerStoreName);
         const customerId = `cust-${Date.now()}`;
         const customer = { ...customerData, id: customerId };
         const request = store.add(customer);
@@ -64,8 +74,8 @@ async function getCustomerFromDB(customerId) {
         await openDB();
     }
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([storeName], 'readonly');
-        const store = transaction.objectStore(storeName);
+        const transaction = db.transaction([customerStoreName], 'readonly');
+        const store = transaction.objectStore(customerStoreName);
         const request = store.get(customerId);
 
         request.onsuccess = () => {
@@ -84,20 +94,18 @@ async function getCustomerFromDB(customerId) {
         };
     });
 }
-
-// New function to get ALL customers from IndexedDB
 async function getAllCustomersFromDB() {
     if (!db) {
         await openDB();
     }
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([storeName], 'readonly');
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll(); // Use getAll() to get all customers
+        const transaction = db.transaction([customerStoreName], 'readonly');
+        const store = transaction.objectStore(customerStoreName);
+        const request = store.getAll();
 
         request.onsuccess = () => {
             console.log('All customers retrieved from IndexedDB:', request.result);
-            resolve(request.result); // Resolve with the array of customers
+            resolve(request.result);
         };
 
         request.onerror = (event) => {
@@ -105,6 +113,104 @@ async function getAllCustomersFromDB() {
             reject(event.target.error);
         };
     });
+}
+
+// Add a new message to IndexedDB
+async function addMessageToDB(messageData) {
+    if (!db) {
+      await openDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([messageStoreName], 'readwrite');
+      const store = transaction.objectStore(messageStoreName);
+      const request = store.add(messageData); // IndexedDB will auto-generate a key
+
+      request.onsuccess = () => {
+        console.log('Message added to IndexedDB:', request.result); // result will be the key
+        resolve(request.result);  // Resolve with the new message ID
+      };
+
+      request.onerror = (event) => {
+        console.error('Error adding message to IndexedDB:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+
+// Search IndexedDB for messages and customer data matching the given terms
+async function searchData(terms) {
+    if (!db) {
+        await openDB();
+    }
+    const searchTerms = terms.toLowerCase().split(/\s+/).filter(term => term !== ''); // Split and normalize
+    if (searchTerms.length === 0) {
+        return []; // Return empty array if no search terms
+    }
+
+    const results = [];
+
+    // Helper function to check if an object matches the search terms
+    function objectMatchesTerms(obj, terms) {
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                const value = obj[key];
+                // Check string values for matches
+                if (typeof value === 'string' && terms.some(term => value.toLowerCase().includes(term))) {
+                    return true; // Match found in string value
+                }
+                // Recursively check nested objects
+                else if (typeof value === 'object' && value !== null) {
+                    if (objectMatchesTerms(value, terms)) {
+                        return true; // Match found in nested object
+                    }
+                }
+            }
+        }
+        return false; // No match found in this object
+    }
+
+
+    // Search the 'customers' store
+    const customerTransaction = db.transaction([customerStoreName], 'readonly');
+    const customerStore = customerTransaction.objectStore(customerStoreName);
+    const customerRequest = customerStore.getAll();
+    await new Promise((resolve, reject) => {
+      customerRequest.onsuccess = () => {
+          const customers = customerRequest.result;
+          //Filter customers
+          const matchedCustomers = customers.filter(customer => objectMatchesTerms(customer, searchTerms));
+          results.push(...matchedCustomers.map(customer => ({...customer, type: 'customer'}))); //add type for display
+          resolve();
+      };
+      customerRequest.onerror = () => reject(customerRequest.error);
+    });
+
+
+    // Search the 'messages' store
+    const messageTransaction = db.transaction([messageStoreName], 'readonly');
+    const messageStore = messageTransaction.objectStore(messageStoreName);
+    const messageRequest = messageStore.getAll();
+     await new Promise((resolve, reject) => {
+        messageRequest.onsuccess = () => {
+          const messages = messageRequest.result;
+
+          // Filter messages that match ANY of the search terms in their values
+          const matchedMessages = messages.filter(message => {
+            return searchTerms.some(term => {
+                return Object.values(message).some(value =>
+                    typeof value === 'string' && value.toLowerCase().includes(term)
+                );
+            });
+          });
+
+          results.push(...matchedMessages.map(message => ({...message, type: 'message'}))); // Add type
+          resolve();
+        };
+        messageRequest.onerror = () => {
+          reject(messageRequest.error)
+        };
+    });
+    return results;
 }
 
 // --- Event Listeners ---
@@ -116,56 +222,69 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
-    event.waitUntil(clients.claim().then(() => {
+    event.waitUntil(clients.claim().then(()=>{
+        //Open de DB.
         openDB();
     }));
 });
 
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
-    console.log('Service Worker: Fetch event for', requestUrl.href);
 
     if (requestUrl.pathname.startsWith(basePath)) {
         const relativePath = requestUrl.pathname.substring(basePath.length);
-        console.log('Service Worker: relativePath is:', relativePath);
         const method = event.request.method;
-        console.log('Service Worker: Method is:', method);
 
-        if (relativePath === 'api/data') {
-            event.respondWith(
-                new Response(JSON.stringify({ message: 'Hello from Service Worker! (data)' }), {
-                    headers: { 'Content-Type': 'application/json' }
-                })
-            );
-        } else if (relativePath === 'api/users') {
-            event.respondWith(
-                new Response(JSON.stringify([{ id: 1, name: 'John Doe' }, { id: 2, name: 'Jane Doe' }]), {
-                    headers: { 'Content-Type': 'application/json' }
-                })
-            );
-        } else if (relativePath.startsWith('api/user/')) {
-            const userId = relativePath.substring('api/user/'.length);
-            event.respondWith(
-                new Response(JSON.stringify({ id: userId, name: 'User ' + userId }), {
-                    headers: { 'Content-Type': 'application/json' }
-                })
-            );
-        } else if (relativePath === 'api/customers' && method === 'POST') {
-            console.log('Service Worker: Handling POST /api/customers');
-            event.respondWith(handleCreateCustomer(event.request));
-        //CHANGED:  Handle GET /api/customers (no ID) to get ALL customers.
-        } else if (relativePath === 'api/customers' && method === 'GET') {
-              console.log('Service Worker: Handling GET /api/customers (all customers)');
-              event.respondWith(handleGetAllCustomers());
-        } else if (relativePath.startsWith('api/customers/') && method === 'GET') {
-            console.log('Service Worker: Handling GET /api/customers/{id}');
-            const customerId = relativePath.split('/')[2];
-            event.respondWith(handleGetCustomer(customerId));
-        } else {
-            console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
+        // Handle API requests
+        if (relativePath.startsWith('api/')) {
+            const apiPath = relativePath.substring(4); // Remove 'api/'
+
+            if (apiPath === 'data' && method === 'GET') {
+                event.respondWith(
+                    new Response(JSON.stringify({ message: 'Hello from Service Worker! (data)' }), {
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                );
+            } else if (apiPath === 'users' && method === 'GET') {
+                event.respondWith(
+                    new Response(JSON.stringify([{ id: 1, name: 'John Doe' }, { id: 2, name: 'Jane Doe' }]), {
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                );
+            } else if (apiPath.startsWith('user/') && method === 'GET') {
+                const userId = apiPath.substring('user/'.length);
+                event.respondWith(
+                    new Response(JSON.stringify({ id: userId, name: 'User ' + userId }), {
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                );
+            } else if (apiPath === 'customers' && method === 'POST') {
+                event.respondWith(handleCreateCustomer(event.request));
+            } else if (apiPath.startsWith('customers/') && method === 'GET') {
+                const customerId = apiPath.split('/')[1];
+                event.respondWith(handleGetCustomer(customerId));
+            } else if (apiPath === 'customers' && method === 'GET') {
+                event.respondWith(handleGetAllCustomers());
+            }else if (apiPath === 'messages' && method === 'POST') {
+              event.respondWith(handlePostMessage(event.request));
+            }
+             else if (apiPath.startsWith('search') && method === 'GET') {
+                const urlParams = new URLSearchParams(requestUrl.search);
+                const terms = urlParams.get('terms');
+                event.respondWith(handleSearchMessages(terms));
+            } else {
+                // Request for an API endpoint that's not handled
+                console.log('Service Worker: Passing request to network (API endpoint not found):', event.request.url);
+                event.respondWith(fetch(event.request));
+            }
+       }else {
+            // Request for a non-API resource (e.g., HTML, CSS, JS files)
+            console.log('Service Worker: Passing request to network (Non-API request):', event.request.url);
             event.respondWith(fetch(event.request));
         }
+
     } else {
+        // Request is not within the base path
         console.log('Service Worker: Passing request to network (not in base path):', event.request.url);
         event.respondWith(fetch(event.request));
     }
@@ -215,12 +334,10 @@ async function handleGetCustomer(customerId) {
         });
     }
 }
-
-// New handler for getting ALL customers
 async function handleGetAllCustomers() {
     try {
-        const allCustomers = await getAllCustomersFromDB(); // Get all from IndexedDB
-        return new Response(JSON.stringify(allCustomers), {
+        const customers = await getAllCustomersFromDB();
+        return new Response(JSON.stringify(customers), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
@@ -230,4 +347,35 @@ async function handleGetAllCustomers() {
             headers: { 'Content-Type': 'application/json' }
         });
     }
+}
+
+async function handlePostMessage(request) {
+  try {
+    const messageData = await request.json();
+    const messageId = await addMessageToDB(messageData);
+    return new Response(JSON.stringify({ messageId }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Service Worker: Error in handlePostMessage:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 400, // Or appropriate error code
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function handleSearchMessages(terms) {
+  try {
+    const results = await searchData(terms);
+    return new Response(JSON.stringify(results), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Service Worker: Error in handleSearchMessages:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 }

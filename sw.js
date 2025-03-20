@@ -60,7 +60,6 @@ async function testHttpMethods() {
     }
 }
 
-
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
     console.log('Service Worker: Fetch event for', requestUrl.href);

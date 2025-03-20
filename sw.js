@@ -1,4 +1,4 @@
-// sw.js
+// sw.js (Final Attempt - Combining all best practices)
 /*jshint esversion: 6 */
 /*jshint worker: true */
 const basePath = '/ServiceWorkerJS/';
@@ -32,83 +32,59 @@ self.addEventListener('activate', function(event) {
 
 self.addEventListener('fetch', function(event) {
     const requestUrl = new URL(event.request.url);
-    console.log('Service Worker: Fetch event for', requestUrl.href);
 
     if (requestUrl.pathname.startsWith(basePath)) {
         const relativePath = requestUrl.pathname.substring(basePath.length);
-        console.log('Service Worker: relativePath is:', relativePath);
         const method = event.request.method;
-        console.log('Service Worker: method is:', method);
-
-        const [route, customerId, quotesOrPolicies, quoteOrPolicyId, action, ...rest] = relativePath.split('/').filter(part => part !== '');
+        const [route, customerId, quotesOrPolicies, quoteOrPolicyId, action] = relativePath.split('/').filter(part => part !== '');
 
         try {
-            // Top-level routes
             if (relativePath === 'products' && method === 'GET') {
-                 event.respondWith(handleGetProducts());
+                event.respondWith(handleGetProducts());
             } else if (route === 'customers') {
-                // Handle /customers routes
-                if (!customerId && method === 'POST') { // Create Customer: /customers
-                    console.log("Entra en customers post");
+                if (!customerId && method === 'POST') {
                     event.respondWith(handleCreateCustomer(event.request));
-                } else if (customerId && quotesOrPolicies === 'quotes') { // Handle /customers/:customerId/quotes
-                    if (!quoteOrPolicyId && method === 'POST') {  // Start Quote: /customers/:customerId/quotes
-                        console.log("Entra en quotes post");
+                } else if (customerId && quotesOrPolicies === 'quotes') {
+                    if (!quoteOrPolicyId && method === 'POST') {
                         event.respondWith(handleStartQuote(customerId, event.request));
-                    } else if (quoteOrPolicyId && !action && method === 'PUT') { // Update Quote: /customers/:customerId/quotes/:quoteId
-                        console.log("Entra en quotes put");
+                    } else if (quoteOrPolicyId && !action && method === 'PUT') {
                         event.respondWith(handleUpdateQuote(customerId, quoteOrPolicyId, event.request));
-                    } else if (quoteOrPolicyId && action === 'calculate' && method === 'POST') { // Calculate: /customers/:customerId/quotes/:quoteId/calculate
+                    } else if (quoteOrPolicyId && action === 'calculate' && method === 'POST') {
                         event.respondWith(handleCalculatePremium(customerId, quoteOrPolicyId));
-                    } else if (quoteOrPolicyId && action === 'accept' && method === 'POST') { // Accept: /customers/:customerId/quotes/:quoteId/accept
+                    } else if (quoteOrPolicyId && action === 'accept' && method === 'POST') {
                         event.respondWith(handleAcceptQuote(customerId, quoteOrPolicyId, event.request));
-                    }  else {
-                        console.log('Service Worker: Passing request to network (Unhandled customers/quotes route):', event.request.url);
-                        event.respondWith(fetch(event.request));
                     }
-                } else if (customerId && quotesOrPolicies === 'policies') { //Handle /customers/:customerId/policies
-                     if (quoteOrPolicyId && !action && method === 'GET') {  // Get Policy: /customers/:customerId/policies/:policyId
+                } else if (customerId && quotesOrPolicies === 'policies') {
+                    if (quoteOrPolicyId && !action && method === 'GET') {
                         event.respondWith(handleGetPolicy(customerId, quoteOrPolicyId));
-                    }else if (quoteOrPolicyId && action === 'renewal' && method === 'GET') { // Renewal Info: /customers/:customerId/policies/:policyId/renewal
+                    } else if (quoteOrPolicyId && action === 'renewal' && method === 'GET') {
                         event.respondWith(handleGetRenewalInfo(customerId, quoteOrPolicyId));
-                    } else if (quoteOrPolicyId && action === 'renew' && method === 'POST') { // Renew: /customers/:customerId/policies/:policyId/renew
+                    } else if (quoteOrPolicyId && action === 'renew' && method === 'POST') {
                         event.respondWith(handleRenewPolicy(customerId, quoteOrPolicyId, event.request));
-                    } else {
-                        console.log('Service Worker: Passing request to network (Unhandled customers/policies route):', event.request.url);
-                        event.respondWith(fetch(event.request));
                     }
-                } else if (customerId && quotesOrPolicies === 'claims') { // Handle /customers/:customerId/claims
-                    if (!quoteOrPolicyId && method === 'POST') {  // File Claim: /customers/:customerId/claims
-                        console.log("Entra en file claim");
+                } else if (customerId && quotesOrPolicies === 'claims') {
+                    if (!quoteOrPolicyId && method === 'POST') {
                         event.respondWith(handleFileClaim(customerId, event.request));
-                    } else if (quoteOrPolicyId && method === 'GET') { // Get Claim: /customers/:customerId/claims/:claimId
+                    } else if (quoteOrPolicyId && method === 'GET') {
                         event.respondWith(handleGetClaim(customerId, quoteOrPolicyId));
-                    }  else {
-                        console.log('Service Worker: Passing request to network (Unhandled customers/claims route):', event.request.url);
-                        event.respondWith(fetch(event.request));
                     }
-                }else {
-                    console.log('Service Worker: Passing request to network (Unhandled customer route):', event.request.url);
-                    event.respondWith(fetch(event.request));
+                } else {
+                  // No matching customer route.  Pass to network.
+                  event.respondWith(fetch(event.request));
                 }
             } else {
-                console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
+                // Not a recognized API route. Pass to network.
                 event.respondWith(fetch(event.request));
             }
-
         } catch (error) {
             console.error("SW Error:", error);
-            event.respondWith(new Response(JSON.stringify({ error: error.message }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            }));
+            event.respondWith(new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
         }
     } else {
-        console.log('Service Worker: Passing request to network (not in base path):', event.request.url);
+        // Not within the Service Worker's scope. Pass to network.
         event.respondWith(fetch(event.request));
     }
 });
-
 // --- Helper Functions (sw.js) ---
 async function handleCreateCustomer(request) {
     const body = await request.json();

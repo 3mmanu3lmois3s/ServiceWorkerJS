@@ -48,6 +48,8 @@ document.addEventListener('click', function(event) {
         postMessage();
     } else if (event.target.id === 'searchMessages') {
         searchMessages();
+    } else if (event.target.id === 'getAllMessages') { // ADDED LISTENER
+        getAllMessages();
     }
 });
 
@@ -219,6 +221,26 @@ async function searchMessages() {
 
     } catch (error) {
         console.error('Error searching messages:', error);
+        document.getElementById('response').textContent = 'Error: ' + error.message;
+    }
+}
+
+// ADDED FUNCTION
+async function getAllMessages() {
+    try {
+        const response = await fetch('/ServiceWorkerJS/api/messages', {
+            method: 'GET' // GET request to /api/messages
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+
+        const messages = await response.json();
+        document.getElementById('response').textContent = JSON.stringify(messages, null, 2);
+    } catch (error) {
+        console.error('Error getting all messages:', error);
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }

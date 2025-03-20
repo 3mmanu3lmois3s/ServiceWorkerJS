@@ -289,14 +289,16 @@ self.addEventListener('fetch', function(event) {
                         headers: { 'Content-Type': 'application/json' }
                     })
                 );
+          // CUSTOMERS
             } else if (apiPath === 'customers' && method === 'POST') {
                 event.respondWith(handleCreateCustomer(event.request));
-            } else if (apiPath.startsWith('customers/') && method === 'GET') {
+            } else if (apiPath === 'customers' && method === 'GET') { // Handle GET for all customers
+                event.respondWith(handleGetAllCustomers());
+            }else if (apiPath.startsWith('customers/') && method === 'GET') {
                 const customerId = apiPath.split('/')[1];
                 event.respondWith(handleGetCustomer(customerId));
-            } else if (apiPath === 'customers' && method === 'GET') {
-                event.respondWith(handleGetAllCustomers());
-            }else if (apiPath === 'messages' && method === 'POST') {
+            } // MESSAGES
+              else if (apiPath === 'messages' && method === 'POST') {
               event.respondWith(handlePostMessage(event.request));
             }
              else if (apiPath.startsWith('search') && method === 'GET') {
@@ -381,30 +383,29 @@ async function handleGetAllCustomers() {
 }
 
 async function handlePostMessage(request) {
-    try {
-      const messageText = await request.text(); // Get raw text first
-      const messageData = JSON.parse(messageText); // THEN parse
-      const currentSize = await calculateTotalSize();
-      if (currentSize + messageText.length > 3000) {
-        return new Response(JSON.stringify({ error: 'Adding this message would exceed the 3000 character limit.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      const messageId = await addMessageToDB(messageData);
-      return new Response(JSON.stringify({ messageId }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    } catch (error) {
-      console.error('Service Worker: Error in handlePostMessage:', error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400, // Or appropriate error code
+  try {
+    const messageText = await request.text(); // Get raw text first
+    const messageData = JSON.parse(messageText); // THEN parse
+    const currentSize = await calculateTotalSize();
+    if (currentSize + messageText.length > 3000) {
+      return new Response(JSON.stringify({ error: 'Adding this message would exceed the 3000 character limit.' }), {
+        status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-  }
 
+    const messageId = await addMessageToDB(messageData);
+    return new Response(JSON.stringify({ messageId }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Service Worker: Error in handlePostMessage:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 400, // Or appropriate error code
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
 async function handleSearchMessages(terms) {
   try {
     const results = await searchData(terms);
@@ -418,4 +419,41 @@ async function handleSearchMessages(terms) {
       headers: { 'Content-Type': 'application/json' }
     });
   }
+}
+// New helper function to retrieve all messages
+async function getAllMessagesFromDB() {
+    if (!db) {
+        await openDB();
+    }
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([messageStoreName], 'readonly');
+        const store = transaction.objectStore(messageStoreName);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+            console.log('All messages retrieved from IndexedDB:', request.result);
+            resolve(request.result);
+        };
+
+        request.onerror = (event) => {
+            console.error('Error getting all messages from IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+// New handler function to retrieve all messages
+async function handleGetAllMessages() {
+    try {
+        const messages = await getAllMessagesFromDB();
+        return new Response(JSON.stringify(messages), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        console.error('Service Worker: Error in handleGetAllMessages:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 }

@@ -2,11 +2,8 @@
 /*jshint esversion: 6 */
 /*jshint worker: true */
 const basePath = '/ServiceWorkerJS/';
-let nextCustomerId = 1; // Keep track of the next customer ID
-
-// In-memory customer data (for this simplified example)
-const customers = {};
-
+// No longer needed: let nextCustomerId = 1;
+// No longer needed: const customers = {};
 
 self.addEventListener('install', function(event) {
     console.log('Service Worker installing.');
@@ -50,11 +47,16 @@ self.addEventListener('fetch', function(event) {
                     headers: { 'Content-Type': 'application/json' }
                 })
             );
-        } else if (relativePath === 'api/customers' && method === 'POST') {
+        } else if (relativePath.startsWith('api/customers') && method === 'POST') {
             // --- Handle POST request to create a customer ---
             console.log('Service Worker: Handling POST /api/customers');
             event.respondWith(handleCreateCustomer(event.request));
 
+        } else if (relativePath.startsWith('api/customers/') && method === 'GET') {
+            // --- Handle GET request to retrieve a customer ---
+            console.log('Service Worker: Handling GET /api/customers/{id}');
+            const customerId = relativePath.split('/')[2]; // Extract customer ID
+            event.respondWith(handleGetCustomer(customerId));
         } else {
             console.log('Service Worker: Passing request to network (under base path, but not API):', event.request.url);
             event.respondWith(fetch(event.request));
@@ -65,15 +67,21 @@ self.addEventListener('fetch', function(event) {
     }
 });
 
-// Helper function to handle customer creation
+// Helper function to handle customer creation (using localStorage)
 async function handleCreateCustomer(request) {
     try {
         const body = await request.json(); // Parse the request body
         console.log('Service Worker: Received customer data:', body); // Log received data
 
-        // "Create" the customer (in-memory)
-        const customerId = `cust-${nextCustomerId++}`;
+        // Get existing customers from localStorage
+        let customers = JSON.parse(localStorage.getItem('customers') || '{}');
+
+        // "Create" the customer (in localStorage)
+        const customerId = `cust-${Date.now()}`; // Use timestamp for unique ID
         customers[customerId] = { ...body, id: customerId };
+
+        // Save back to localStorage
+        localStorage.setItem('customers', JSON.stringify(customers));
 
         console.log('Service Worker: Created customer:', customers[customerId]); // Log the created customer
 
@@ -86,6 +94,34 @@ async function handleCreateCustomer(request) {
         console.error('Service Worker: Error in handleCreateCustomer:', error);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 400, // Bad Request
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// Helper function to handle customer retrieval (using localStorage)
+async function handleGetCustomer(customerId) {
+    try {
+        // Get customers from localStorage
+        const customers = JSON.parse(localStorage.getItem('customers') || '{}');
+
+        // Check if customer exists
+        if (customers[customerId]) {
+            console.log('Service Worker: Found customer:', customers[customerId]);
+            return new Response(JSON.stringify(customers[customerId]), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } else {
+            console.log('Service Worker: Customer not found:', customerId);
+            return new Response(JSON.stringify({ error: 'Customer not found' }), {
+                status: 404, // Not Found
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+    } catch (error) {
+        console.error('Service Worker: Error in handleGetCustomer:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500, // Internal Server Error
             headers: { 'Content-Type': 'application/json' }
         });
     }

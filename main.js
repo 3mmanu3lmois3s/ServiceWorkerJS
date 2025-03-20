@@ -35,6 +35,8 @@ document.addEventListener('click', function(event) {
         newWorker.postMessage({ action: 'skipWaiting' });
     } else if (event.target.id === 'createCustomer') {
         createCustomer(); // Call the createCustomer function
+    } else if (event.target.id === 'getCustomer') {
+        getCustomer(); // Call the getCustomer function
     }
 });
 
@@ -103,6 +105,34 @@ async function createCustomer() {
 
     } catch (error) {
         console.error('Error creating customer:', error);
+        document.getElementById('response').textContent = 'Error: ' + error.message;
+    }
+}
+
+// --- Get Customer Functionality ---
+async function getCustomer() {
+    const customerId = document.getElementById('getCustomerId').value;
+
+    if (!customerId) {
+        alert('Please enter a customer ID.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/ServiceWorkerJS/api/customers/${customerId}`, {
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+
+        const customerData = await response.json();
+        document.getElementById('response').textContent = JSON.stringify(customerData, null, 2);
+
+    } catch (error) {
+        console.error('Error getting customer:', error);
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }

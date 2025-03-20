@@ -11,7 +11,7 @@
         #status { margin-left: 1em; font-weight: bold; }
         #updateSW { display: none; background-color: #4CAF50; color: white; border: none;}
         /* Style for input fields */
-        #customerForm input {
+        #customerForm input, #getCustomerForm input {
             margin-bottom: 0.5em;
             padding: 0.3em;
             border: 1px solid #ccc;
@@ -31,6 +31,12 @@
             <input type="text" id="customerName" placeholder="Customer Name">
             <input type="text" id="customerEmail" placeholder="Customer Email">
             <button id="createCustomer">Create Customer</button>
+        </div>
+
+        <div id="getCustomerForm">
+            <h2>Get Customer</h2>
+            <input type="text" id="getCustomerId" placeholder="Customer ID">
+            <button id="getCustomer">Get Customer</button>
         </div>
 
         <button id="updateSW" style="display: none;">Update Service Worker</button>

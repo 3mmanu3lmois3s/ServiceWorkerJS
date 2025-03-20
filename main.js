@@ -42,7 +42,7 @@ document.addEventListener('click', function(event) {
         createCustomer();
     } else if (event.target.id === 'getCustomer') {
         getCustomer();
-    } else if (event.target.id === 'getAllCustomers') { // New event listener
+    } else if (event.target.id === 'getAllCustomers') {
         getAllCustomers();
     } else if (event.target.id === 'postMessage') {
         postMessage();
@@ -144,9 +144,10 @@ async function getCustomer() {
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }
+
 async function getAllCustomers() {
     try {
-        const response = await fetch('/ServiceWorkerJS/api/customers', { // No ID needed
+        const response = await fetch('/ServiceWorkerJS/api/customers', {
             method: 'GET'
         });
 
@@ -169,17 +170,8 @@ async function postMessage() {
         alert('Please enter JSON data.');
         return;
     }
-    if(messageData.length > 3000){
-        alert('The message is too long.');
-        return;
-    }
 
-    try {
-        JSON.parse(messageData); // Validate JSON
-    } catch (error) {
-        alert('Invalid JSON: ' + error.message);
-        return;
-    }
+    // NO JSON.parse here.  sw.js will handle it.
 
     try {
         const response = await fetch('/ServiceWorkerJS/api/messages', {
@@ -187,7 +179,7 @@ async function postMessage() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(JSON.parse(messageData)) // Send the parsed JSON
+            body: messageData // Send the raw string
         });
 
         if (!response.ok) {
@@ -202,6 +194,7 @@ async function postMessage() {
         document.getElementById('response').textContent = 'Error: ' + error.message;
     }
 }
+
 async function searchMessages() {
     const searchTerms = document.getElementById('searchTerms').value;
     if (!searchTerms) {

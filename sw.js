@@ -1,7 +1,6 @@
 // sw.js
 /*jshint esversion: 6 */
 /*jshint worker: true */
-
 const basePath = '/ServiceWorkerJS/';
 const dbName = 'insuranceDB'; // Changed database name
 const customerStoreName = 'customers';
@@ -94,6 +93,7 @@ async function getCustomerFromDB(customerId) {
         };
     });
 }
+
 async function getAllCustomersFromDB() {
     if (!db) {
         await openDB();
@@ -213,6 +213,36 @@ async function searchData(terms) {
     return results;
 }
 
+// Calculate the total size of messages in IndexedDB
+async function calculateTotalSize() {
+    if (!db) {
+        await openDB();
+    }
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([messageStoreName], 'readonly');
+        const store = transaction.objectStore(messageStoreName);
+        const request = store.openCursor(); // Use a cursor to iterate
+        let totalSize = 0;
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                // Estimate size of the stored object (rough estimate)
+                totalSize += JSON.stringify(cursor.value).length;
+                cursor.continue(); // Move to the next object
+            } else {
+                // No more objects, resolve with the total size
+                resolve(totalSize);
+            }
+        };
+
+        request.onerror = (event) => {
+            console.error('Error calculating total size:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
 // --- Event Listeners ---
 
 self.addEventListener('install', function(event) {
@@ -222,9 +252,8 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
     console.log('Service Worker activating.');
-    event.waitUntil(clients.claim().then(()=>{
-        //Open de DB.
-        openDB();
+    event.waitUntil(clients.claim().then(() => {
+        openDB(); // Initialize IndexedDB
     }));
 });
 
@@ -350,20 +379,29 @@ async function handleGetAllCustomers() {
 }
 
 async function handlePostMessage(request) {
-  try {
-    const messageData = await request.json();
-    const messageId = await addMessageToDB(messageData);
-    return new Response(JSON.stringify({ messageId }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    console.error('Service Worker: Error in handlePostMessage:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400, // Or appropriate error code
-      headers: { 'Content-Type': 'application/json' }
-    });
+    try {
+      const messageText = await request.text(); // Get raw text first
+      const messageData = JSON.parse(messageText); // THEN parse
+      const currentSize = await calculateTotalSize();
+      if (currentSize + messageText.length > 3000) {
+        return new Response(JSON.stringify({ error: 'Adding this message would exceed the 3000 character limit.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      const messageId = await addMessageToDB(messageData);
+      return new Response(JSON.stringify({ messageId }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      console.error('Service Worker: Error in handlePostMessage:', error);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, // Or appropriate error code
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
-}
 
 async function handleSearchMessages(terms) {
   try {

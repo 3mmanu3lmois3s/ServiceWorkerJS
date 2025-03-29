@@ -1,0 +1,62 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/data",
+    "description": "Obtener mensaje de prueba",
+    "payloadExample": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/users",
+    "description": "Obtener lista de usuarios",
+    "payloadExample": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/user/:userId",
+    "description": "Obtener usuario específico",
+    "payloadExample": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/customers",
+    "description": "Crear nuevo cliente",
+    "payloadExample": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/customers",
+    "description": "Obtener todos los clientes",
+    "payloadExample": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/customers/:customerId",
+    "description": "Obtener cliente por ID",
+    "payloadExample": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/messages",
+    "description": "Enviar un nuevo mensaje",
+    "payloadExample": {
+      "type": "system",
+      "text": "Mensaje de prueba"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/messages",
+    "description": "Obtener todos los mensajes",
+    "payloadExample": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/search?terms={{terms}}",
+    "description": "Buscar entre clientes y mensajes",
+    "payloadExample": {}
+  }
+]
